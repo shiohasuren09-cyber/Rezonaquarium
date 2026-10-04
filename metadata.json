@@ -1,0 +1,6 @@
+{
+  "name": "Rezonaquarium",
+  "description": "Procedural HTML5 Canvas aquarium game featuring hungry fish, feeding mechanics, growth, and living aquatic environment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
