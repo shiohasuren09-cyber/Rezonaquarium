@@ -6,7 +6,7 @@
 export type InputMode = 'touch';
 
 export interface Action {
-  type: 'tap' | 'pointerup' | 'scroll' | 'toggleShop' | 'togglePause' | 'closeTop';
+  type: 'tap' | 'pointerup' | 'scroll' | 'toggleShop' | 'togglePause' | 'closeTop' | 'hover';
   x?: number;
   y?: number;
   id?: number;
@@ -136,6 +136,15 @@ export function initializeInput(canvas: HTMLCanvasElement) {
     const { x, y } = getLogicalCoords(e.clientX, e.clientY);
     input.x = x;
     input.y = y;
+
+    actionQueue.push({
+      type: 'hover',
+      x,
+      y,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      pointerId: e.pointerId,
+    });
 
     if (input.isMouseDown && lastTouchY !== null) {
       const deltaY = e.clientY - lastTouchY;

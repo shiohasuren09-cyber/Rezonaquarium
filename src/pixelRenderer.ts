@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CONFIG, type GameState, type ShopCategory, shopLog, saveState, saveProgress } from './App.tsx';
+import { CONFIG, type GameState, type ShopCategory, shopLog, saveState, saveProgress, isPetUnlocked } from './App.tsx';
 import { game } from './audioModule.ts';
 import { t } from './textEngine.ts';
 import {
@@ -664,6 +664,7 @@ export function computeShopBadge(gs: GameState): boolean {
 
   for (let i = 0; i < CONFIG.SHOP_ITEMS.length; i++) {
     const item = CONFIG.SHOP_ITEMS[i];
+    if (!isPetUnlocked(item.id, gs.completedLevels || saveState.completed)) continue;
     const currentLvl = gs.shop.levels[item.id] || 0;
 
     // Check maxed / owned
@@ -1698,6 +1699,16 @@ export function renderPixelScene(
     drawShopModal(ctx, gs);
   }
 
+  // 11. TUTORIAL OVERLAY (Shelly dialogue, target highlights, tracking arrows)
+  if (gs.isTutorial && gs.tutorialStep > 0) {
+    renderTutorialOverlay(ctx, gs);
+  }
+
+  // 12. AUDIO PANEL
+  if (gs.audioPanel?.open) {
+    renderAudioPanel(ctx, gs);
+  }
+
   // --------------------------------------------------------------------------
   // 11. 0.4s PIXEL DISSOLVE TRANSITION (4x4 blocks revealed in random order)
   // --------------------------------------------------------------------------
@@ -1714,10 +1725,6 @@ export function renderPixelScene(
   ctx.fillRect(0, 0, 400, 300);
   ctx.restore();
 
-  // --------------------------------------------------------------------------
-  // 13. PIXEL HAND CURSOR & TACTICAL WEAPON RING (2px ring in cream & gold)
-  // --------------------------------------------------------------------------
-  renderPixelCursor(ctx, gs);
 }
 
 // ============================================================================
@@ -2591,6 +2598,9 @@ function drawLevelCompleteScreen(
   const rightColX = 180;
   const rightColW = 120;
   const timeY = 114;
+  const finalTime = (levelStats && levelStats.elapsedTime > 0) ? levelStats.elapsedTime : (gs.levelElapsedTime || 0);
+  const finalMoney = (levelStats && levelStats.finalMoney > 0) ? levelStats.finalMoney : (gs.money || 0);
+
   ctx.drawImage(SPRITES.iconTime.normal, rightColX, timeY + 1);
   drawFittedText(ctx, 'TIME:', rightColX + 11, timeY, {
     w: 35,
@@ -2600,7 +2610,7 @@ function drawLevelCompleteScreen(
     valign: 'middle',
     color: 'diamond',
   });
-  drawFittedText(ctx, formatTime(levelStats.elapsedTime), rightColX + rightColW - 60, timeY, {
+  drawFittedText(ctx, formatTime(finalTime), rightColX + rightColW - 60, timeY, {
     w: 60,
     h: 12,
     maxLines: 1,
@@ -2620,7 +2630,7 @@ function drawLevelCompleteScreen(
     valign: 'middle',
     color: 'gold',
   });
-  drawFittedText(ctx, `$${formatNumber(levelStats.finalMoney, 60)}`, rightColX + rightColW - 60, moneyY, {
+  drawFittedText(ctx, `$${formatNumber(finalMoney, 60)}`, rightColX + rightColW - 60, moneyY, {
     w: 60,
     h: 12,
     maxLines: 1,
@@ -2828,7 +2838,7 @@ function drawShopModal(ctx: CanvasRenderingContext2D, gs: GameState) {
     color: 'outline',
   });
 
-  // 4. Three 44x15 (88x30) tabs below header (Pets, Upgrades, Decor)
+  // 4. Tabs below header (Pets, Upgrades, Decor)
   const tabY = mY + ribH + 3;
   const tabH = 15;
   let categories: { id: ShopCategory; label: string }[] = [
@@ -2843,7 +2853,7 @@ function drawShopModal(ctx: CanvasRenderingContext2D, gs: GameState) {
     ];
   }
 
-  const totalTabW = 3 * 44;
+  const totalTabW = categories.length * 44;
   const tabStartX = mX + Math.floor((mW - totalTabW) / 2);
   const selCat = gs.shop.selectedCategory || 'pets';
 
@@ -2877,11 +2887,17 @@ function drawShopModal(ctx: CanvasRenderingContext2D, gs: GameState) {
     });
   }
 
-  // 5. Content Area (cards in 2-column grid, each 67x50 with 5px gap)
+  // 5. BUY Button at bottom of modal
+  const buyW = mW - 20;
+  const buyH = 20;
+  const buyX = mX + 10;
+  const buyY = mY + mH - buyH - 5;
+
+  // 6. Content Area (cards in 2-column grid, each 67x50 with 5px gap)
   const contentX = mX + 5;
   const contentY = mY + ribH + tabH + 5;
   const contentW = mW - 10;
-  const contentH = mH - (ribH + tabH + 8);
+  const contentH = buyY - contentY - 4;
 
   ctx.save();
   ctx.beginPath();
@@ -2898,9 +2914,9 @@ function drawShopModal(ctx: CanvasRenderingContext2D, gs: GameState) {
 
   let items = CONFIG.SHOP_ITEMS.filter((it) => it.category === selCat);
   if (gs.isTutorial) {
-    const tutorialStep = CONFIG.TUTORIAL[gs.tutorialStep - 1];
-    const allowedIds = tutorialStep ? tutorialStep.allow : [];
-    items = items.filter(it => allowedIds.includes(it.id));
+    items = items.filter(it => it.id === 'buyFish' || it.id === 'foodLimit');
+  } else {
+    items = items.filter(it => isPetUnlocked(it.id, gs.completedLevels || saveState.completed));
   }
   const scrollOffset = gs.shop.scrollOffset || 0;
 
@@ -3065,7 +3081,7 @@ function drawShopModal(ctx: CanvasRenderingContext2D, gs: GameState) {
       descText = `LIVE ${petLiveCount}/${petMaxCount}`;
     }
 
-    const descResult = drawFittedText(ctx, descText, cardX + 2, cardY + 20, {
+    drawFittedText(ctx, descText, cardX + 2, cardY + 20, {
       w: 63,
       h: 14,
       maxLines: 2,
@@ -3165,10 +3181,10 @@ function drawShopModal(ctx: CanvasRenderingContext2D, gs: GameState) {
     const isSelected = gs.shop.selectedItemId === item.id;
     if (isSelected) {
       ctx.fillStyle = PALETTE.gold;
-      ctx.fillRect(cardX - 1, cardY - 1, cardW + 2, 1);
-      ctx.fillRect(cardX - 1, cardY + cardH, cardW + 2, 1);
-      ctx.fillRect(cardX - 1, cardY, 1, cardH);
-      ctx.fillRect(cardX + cardW, cardY, 1, cardH);
+      ctx.fillRect(cardX - 1, cardY - 1, cardW + 2, 2);
+      ctx.fillRect(cardX - 1, cardY + cardH - 1, cardW + 2, 2);
+      ctx.fillRect(cardX - 1, cardY - 1, 2, cardH + 2);
+      ctx.fillRect(cardX + cardW - 1, cardY - 1, 2, cardH + 2);
     }
     shopLog('render', { id: item.id, state: { currentLvl, isAffordable, isMax, isCapped, isLocked, isSelected } });
 
@@ -3182,36 +3198,81 @@ function drawShopModal(ctx: CanvasRenderingContext2D, gs: GameState) {
     }
   }
 
-  // Draw BUY Button at bottom of modal
-  const buyW = mW - 20;
-  const buyH = 18;
-  const buyX = mX + 10;
-  const buyY = mY + mH - buyH - 5;
+  ctx.restore(); // Restore content area clip
+
+  // 7. Render BUY Button at bottom of modal
   const selItemId = gs.shop.selectedItemId;
   const selItem = selItemId ? CONFIG.SHOP_ITEMS.find(it => it.id === selItemId) : null;
   const selItemLvl = selItem ? (gs.shop.levels[selItem.id] || 0) : 0;
   const selPrice = selItem ? selItem.prices[Math.min(selItemLvl, selItem.prices.length - 1)] : 0;
   const isFreeShop = game.mode === 'sandbox' && game.sandbox.freeShop;
   const selPriceText = isFreeShop ? t('shop.free') : `$${selPrice}`;
-  const buyLabel = selItem ? `BUY ${selItem.name.toUpperCase()} (${selPriceText})` : 'SELECT ITEM';
+
+  let buyLabel = 'SELECT AN ITEM';
+  let buyBg: string = PALETTE.sand;
+  let buyTextColor: 'outline' | 'cream' | 'coral' | 'glow' = 'outline';
+
+  if (selItem) {
+    const isSelMax = selItem.maxLevel !== null && selItemLvl >= selItem.maxLevel;
+    let isSelCapped = false;
+    if (selItem.id === 'buyFish') {
+      const live = gs.fish.filter(f => !f.isCarnivore && !f.dead).length;
+      if (live >= 15) isSelCapped = true;
+    } else if (selItem.id === 'carnivore') {
+      const live = gs.fish.filter(f => f.isCarnivore && !f.dead).length;
+      if (live >= 2) isSelCapped = true;
+    } else if (selItem.id === 'snail') {
+      const live = gs.snails.filter(s => !s.dead).length;
+      if (live >= 1) isSelCapped = true;
+    }
+
+    let isSelLocked = false;
+    if (selItem.requires) {
+      const reqLvl = gs.shop.levels[selItem.requires.id] || 0;
+      if (reqLvl < selItem.requires.level) isSelLocked = true;
+    }
+
+    if (selItem.category === 'decor' && gs.shop.decorOwned[selItem.id]) {
+      const isShown = gs.shop.decorShown[selItem.id];
+      buyLabel = isShown ? `HIDE ${selItem.name.toUpperCase()}` : `SHOW ${selItem.name.toUpperCase()}`;
+      buyBg = isShown ? PALETTE.sandShade : PALETTE.gold;
+    } else if (isSelMax) {
+      buyLabel = 'MAX LEVEL REACHED';
+      buyBg = PALETTE.glow;
+    } else if (isSelCapped) {
+      buyLabel = 'MAX POPULATION REACHED';
+      buyBg = PALETTE.sandShade;
+    } else if (isSelLocked) {
+      buyLabel = 'LOCKED (NEEDS UPGRADE)';
+      buyBg = PALETTE.woodDark;
+      buyTextColor = 'cream';
+    } else if (gs.money < selPrice && !isFreeShop) {
+      buyLabel = `BUY ${selItem.name.toUpperCase()} (${selPriceText})`;
+      buyBg = PALETTE.sand;
+      buyTextColor = 'coral';
+    } else {
+      buyLabel = `BUY ${selItem.name.toUpperCase()} (${selPriceText})`;
+      buyBg = PALETTE.gold;
+      buyTextColor = 'outline';
+    }
+  }
 
   const isBuyHovered = mx >= buyX && mx < buyX + buyW && my >= buyY && my < buyY + buyH;
   const isBuyPressed = isBuyHovered && isMouseDown;
 
   ctx.fillStyle = PALETTE.woodDark;
   ctx.fillRect(buyX, buyY, buyW, buyH);
-  ctx.fillStyle = isBuyPressed ? PALETTE.sandShade : (selItem && gs.money >= selPrice ? PALETTE.gold : PALETTE.sand);
+  ctx.fillStyle = isBuyPressed ? PALETTE.sandShade : (isBuyHovered ? PALETTE.white : buyBg);
   ctx.fillRect(buyX + 1, buyY + 1, buyW - 2, buyH - 2);
+
   drawFittedText(ctx, buyLabel, buyX + 2, buyY + 3, {
     w: buyW - 4,
     h: buyH - 6,
     maxLines: 1,
     align: 'center',
     valign: 'middle',
-    color: 'outline',
+    color: buyTextColor,
   });
-
-  ctx.restore();
 
   // Draw Tooltip (up to 80 art px wide, grow to fit up to 5 lines of small font, 3px padding)
   if (hoveredTooltip) {
@@ -3244,29 +3305,10 @@ function drawShopModal(ctx: CanvasRenderingContext2D, gs: GameState) {
     }
   }
 
-  // 11. AUDIO PANEL
-  renderAudioPanel(ctx, gs);
-
-  // 12. TUTORIAL OVERLAY
-  if (gs.isTutorial && gs.tutorialStep > 0) {
-    renderTutorialOverlay(ctx, gs);
-  }
-
-  // 13. CURSOR
-  renderPixelCursor(ctx, gs);
 }
 
-function renderPixelCursor(ctx: CanvasRenderingContext2D, gs: GameState) {
-  if (!gs.mousePos.inCanvas) return;
-  const mx = Math.floor(gs.mousePos.x / 2);
-  const my = Math.floor(gs.mousePos.y / 2);
-
-  if (gs.weaponUpgradeLevel >= 1 && gs.mousePos.y >= CONFIG.waterTop && gs.state === 'PLAYING') {
-    renderTacticalWeaponRing(ctx, mx, my);
-  }
-
-  const hand = gs.mousePos.isMouseDown ? SPRITES.handCursorPressed : SPRITES.handCursor;
-  ctx.drawImage(hand.normal, mx - hand.originX, my - hand.originY);
+function renderPixelCursor(_ctx: CanvasRenderingContext2D, _gs: GameState) {
+  // Custom cursor removed; native OS/Windows cursor is used
 }
 
 
@@ -3303,58 +3345,442 @@ function renderAudioPanel(ctx: CanvasRenderingContext2D, gs: GameState) {
   ctx.fillRect(pX + 20, pY + 70, 16, 16);
 }
 
+let checkerboardPattern: CanvasPattern | null = null;
+function getCheckerboardPattern(ctx: CanvasRenderingContext2D): CanvasPattern | null {
+  if (!checkerboardPattern && typeof document !== 'undefined') {
+    const pCanvas = document.createElement('canvas');
+    pCanvas.width = 4;
+    pCanvas.height = 4;
+    const pCtx = pCanvas.getContext('2d');
+    if (pCtx) {
+      pCtx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      pCtx.fillRect(0, 0, 1, 1);
+      pCtx.fillRect(2, 0, 1, 1);
+      pCtx.fillRect(1, 1, 1, 1);
+      pCtx.fillRect(3, 1, 1, 1);
+      pCtx.fillRect(0, 2, 1, 1);
+      pCtx.fillRect(2, 3, 1, 1);
+      checkerboardPattern = ctx.createPattern(pCanvas, 'repeat');
+    }
+  }
+  return checkerboardPattern;
+}
+
+function rectsOverlap(
+  r1: { x: number; y: number; w: number; h: number },
+  r2: { x: number; y: number; w: number; h: number },
+  pad: number = 2
+): boolean {
+  return !(
+    r1.x + r1.w < r2.x - pad ||
+    r1.x > r2.x + r2.w + pad ||
+    r1.y + r1.h < r2.y - pad ||
+    r1.y > r2.y + r2.h + pad
+  );
+}
+
+function drawBouncingArrow(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  dir: 'down' | 'up' = 'down'
+) {
+  ctx.save();
+  ctx.fillStyle = PALETTE.gold;
+  ctx.strokeStyle = PALETTE.woodDark;
+  ctx.lineWidth = 1;
+  const ix = Math.floor(x);
+  const iy = Math.floor(y);
+
+  if (dir === 'down') {
+    ctx.beginPath();
+    ctx.moveTo(ix, iy);
+    ctx.lineTo(ix - 5, iy - 6);
+    ctx.lineTo(ix - 2, iy - 6);
+    ctx.lineTo(ix - 2, iy - 11);
+    ctx.lineTo(ix + 2, iy - 11);
+    ctx.lineTo(ix + 2, iy - 6);
+    ctx.lineTo(ix + 5, iy - 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(ix, iy);
+    ctx.lineTo(ix - 5, iy + 6);
+    ctx.lineTo(ix - 2, iy + 6);
+    ctx.lineTo(ix - 2, iy + 11);
+    ctx.lineTo(ix + 2, iy + 11);
+    ctx.lineTo(ix + 2, iy + 6);
+    ctx.lineTo(ix + 5, iy + 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawShellyPortrait(
+  ctx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+  isBlinking: boolean,
+  mouthOpen: boolean
+) {
+  // 22x22 portrait frame
+  ctx.fillStyle = '#070d18';
+  ctx.fillRect(px, py, 22, 22);
+
+  // Seashell (curved spiral covering top-left and back)
+  ctx.fillStyle = '#92400e';
+  ctx.fillRect(px + 2, py + 2, 11, 10);
+  ctx.fillRect(px + 1, py + 4, 13, 8);
+  ctx.fillStyle = '#d97706';
+  ctx.fillRect(px + 3, py + 3, 9, 8);
+  ctx.fillRect(px + 2, py + 5, 11, 6);
+  ctx.fillStyle = '#fde68a';
+  ctx.fillRect(px + 4, py + 4, 3, 2);
+  ctx.fillRect(px + 8, py + 5, 4, 2);
+  ctx.fillRect(px + 3, py + 7, 3, 1);
+
+  // Crab head & face peeking forward
+  ctx.fillStyle = '#ea580c';
+  ctx.fillRect(px + 7, py + 8, 12, 10);
+  ctx.fillRect(px + 8, py + 7, 10, 12);
+  ctx.fillStyle = '#c2410c';
+  ctx.fillRect(px + 7, py + 16, 12, 2);
+
+  // Eyestalks
+  ctx.fillStyle = '#ea580c';
+  ctx.fillRect(px + 9, py + 4, 2, 4);
+  ctx.fillRect(px + 15, py + 4, 2, 4);
+
+  // Eyes (blinks every 3s)
+  if (isBlinking) {
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(px + 8, py + 4, 4, 1);
+    ctx.fillRect(px + 14, py + 4, 4, 1);
+  } else {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(px + 8, py + 2, 4, 4);
+    ctx.fillRect(px + 14, py + 2, 4, 4);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(px + 10, py + 3, 2, 2);
+    ctx.fillRect(px + 14, py + 3, 2, 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(px + 9, py + 3, 1, 1);
+    ctx.fillRect(px + 15, py + 3, 1, 1);
+  }
+
+  // Mouth (moves at 4fps while typing)
+  if (mouthOpen) {
+    ctx.fillStyle = '#450a0a';
+    ctx.fillRect(px + 12, py + 13, 3, 2);
+    ctx.fillStyle = '#f43f5e';
+    ctx.fillRect(px + 13, py + 14, 1, 1);
+  } else {
+    ctx.fillStyle = '#7c2d12';
+    ctx.fillRect(px + 11, py + 13, 1, 1);
+    ctx.fillRect(px + 12, py + 14, 2, 1);
+    ctx.fillRect(px + 14, py + 13, 1, 1);
+  }
+
+  // Claws
+  ctx.fillStyle = '#f97316';
+  ctx.fillRect(px + 5, py + 13, 3, 3);
+  ctx.fillRect(px + 17, py + 13, 3, 3);
+  ctx.fillStyle = '#ea580c';
+  ctx.fillRect(px + 5, py + 12, 2, 1);
+  ctx.fillRect(px + 18, py + 12, 2, 1);
+
+  // Ribbon banner: "SHELLY"
+  ctx.fillStyle = '#7f1d1d';
+  ctx.fillRect(px - 1, py + 17, 24, 6);
+  ctx.fillStyle = '#fbbf24';
+  ctx.strokeRect(px - 0.5, py + 17.5, 23, 5);
+  drawFittedText(ctx, 'SHELLY', px - 1, py + 18, {
+    w: 24,
+    h: 5,
+    maxLines: 1,
+    align: 'center',
+    valign: 'middle',
+    color: 'cream',
+    fonts: ['small'],
+  });
+}
+
 function renderTutorialOverlay(ctx: CanvasRenderingContext2D, gs: GameState) {
   const stepIndex = gs.tutorialStep - 1;
   const step = CONFIG.TUTORIAL[stepIndex];
   if (!step) return;
 
-  const pageKey = step.pages[0];
-  const pageText = t(pageKey);
+  // 1. Resolve highlight target in 400x300 UI px
+  let hlType: 'ui' | 'water' | 'coin' | 'alien' | null = null;
+  let hlRect: { x: number; y: number; w: number; h: number } | null = null;
+  let tapZoneRect: { x: number; y: number; w: number; h: number } | null = null;
 
-  // Draw tutorial box at bottom center
-  const bw = 240;
-  const bh = 50;
-  const bx = 200 - bw / 2;
-  const by = 240;
+  if (step.highlight === 'ui:shop' || (!gs.shop?.open && (step.id === 'buyFish' || step.id === 'foodLimit'))) {
+    hlType = 'ui';
+    hlRect = { x: 57, y: 4, w: 40, h: 22 };
+    tapZoneRect = hlRect;
+  } else if (step.highlight === 'ui:close') {
+    if (gs.shop?.open) {
+      hlType = 'ui';
+      const mX = 250;
+      hlRect = { x: mX + 128, y: 32, w: 18, h: 16 };
+      tapZoneRect = hlRect;
+    } else {
+      hlType = 'water';
+      hlRect = { x: 8, y: 32, w: 384, h: 236 };
+    }
+  } else if (step.highlight === 'ui:row:buyFish') {
+    hlType = 'ui';
+    const mX = gs.shop?.open ? 250 : 400;
+    if (!gs.shop?.open) {
+      hlRect = { x: 57, y: 4, w: 40, h: 22 };
+    } else if (gs.shop?.selectedCategory !== 'pets') {
+      hlRect = { x: mX + 31, y: 53, w: 44, h: 15 };
+    } else if (gs.shop?.selectedItemId !== 'buyFish') {
+      hlRect = { x: mX + 8, y: 73, w: 67, h: 50 };
+    } else {
+      hlRect = { x: mX + 10, y: 245, w: 130, h: 20 };
+    }
+    tapZoneRect = hlRect;
+  } else if (step.highlight === 'ui:row:foodLimit') {
+    hlType = 'ui';
+    const mX = gs.shop?.open ? 250 : 400;
+    if (!gs.shop?.open) {
+      hlRect = { x: 57, y: 4, w: 40, h: 22 };
+    } else if (gs.shop?.selectedCategory !== 'upgrades') {
+      hlRect = { x: mX + 75, y: 53, w: 44, h: 15 };
+    } else if (gs.shop?.selectedItemId !== 'foodLimit') {
+      hlRect = { x: mX + 8, y: 73, w: 67, h: 50 };
+    } else {
+      hlRect = { x: mX + 10, y: 245, w: 130, h: 20 };
+    }
+    tapZoneRect = hlRect;
+  } else if (step.highlight === 'ui:egg') {
+    hlType = 'ui';
+    hlRect = { x: 101, y: 4, w: 174, h: 22 };
+    tapZoneRect = hlRect;
+  } else if (step.highlight === 'tank:water' || step.highlight === 'water') {
+    hlType = 'water';
+    hlRect = { x: 8, y: 32, w: 384, h: 236 };
+  } else if (step.highlight === 'coin:tut' || step.highlight === 'coins') {
+    hlType = 'coin';
+  } else if (step.highlight === 'alien:tut' || step.highlight === 'alien') {
+    const alienAlive = gs.aliens.some(a => a.tut && !a.dead);
+    if (alienAlive) {
+      hlType = 'alien';
+    } else {
+      hlType = 'coin';
+    }
+  }
+
+  // 2. Draw Highlights
+  if (hlType === 'ui' && hlRect) {
+    const pattern = getCheckerboardPattern(ctx);
+    ctx.save();
+    ctx.fillStyle = pattern || 'rgba(0, 0, 0, 0.4)';
+    ctx.beginPath();
+    ctx.rect(0, 0, 400, 300);
+    ctx.rect(hlRect.x, hlRect.y, hlRect.w, hlRect.h);
+    ctx.fill('evenodd');
+    ctx.restore();
+
+    const pulse = Math.sin(gs.time * 6) * 0.5 + 0.5;
+    ctx.strokeStyle = PALETTE.gold;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(hlRect.x - 1, hlRect.y - 1, hlRect.w + 2, hlRect.h + 2);
+
+    const bounce = Math.abs(Math.sin(gs.time * 7)) * 4;
+    if (hlRect.y > 60) {
+      drawBouncingArrow(ctx, hlRect.x + hlRect.w / 2, hlRect.y - 8 - bounce, 'down');
+    } else {
+      drawBouncingArrow(ctx, hlRect.x + hlRect.w / 2, hlRect.y + hlRect.h + 8 + bounce, 'up');
+    }
+  } else if (hlType === 'water') {
+    ctx.save();
+    const pulse = Math.sin(gs.time * 4) * 0.5 + 0.5;
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.lineDashOffset = -gs.time * 10;
+    ctx.strokeRect(8, 32, 384, 236);
+    ctx.restore();
+
+    const hx = 200;
+    const hy = 135 + Math.sin(gs.time * 5) * 4;
+    const rip = (gs.time * 2) % 1;
+    ctx.strokeStyle = `rgba(56, 189, 248, ${1 - rip})`;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(hx, hy + 8, rip * 16, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.drawImage(SPRITES.handCursor.normal, hx - 4, hy - 4);
+  } else if (hlType === 'coin') {
+    const coin = gs.coins.find(c => c.tut && !c.collected && !c.dead) || gs.coins.find(c => !c.collected && !c.dead);
+    if (coin) {
+      const cx = Math.floor(coin.x / 2);
+      const cy = Math.floor(coin.y / 2);
+      const bounce = Math.abs(Math.sin(gs.time * 7)) * 4;
+      drawBouncingArrow(ctx, cx, cy - 14 - bounce, 'down');
+    }
+  } else if (hlType === 'alien') {
+    const alien = gs.aliens.find(a => a.tut && !a.dead) || gs.aliens.find(a => !a.dead);
+    if (alien) {
+      const ax = Math.floor(alien.x / 2);
+      const ay = Math.floor(alien.y / 2);
+      const bounce = Math.abs(Math.sin(gs.time * 7)) * 4;
+      drawBouncingArrow(ctx, ax, ay - 24 - bounce, 'down');
+    }
+  }
+
+  // 3. Four Tank Anchors:
+  const anchors = [
+    { x: 10, y: 34, w: 156, h: 58 },
+    { x: 234, y: 34, w: 156, h: 58 },
+    { x: 10, y: 206, w: 156, h: 58 },
+    { x: 234, y: 206, w: 156, h: 58 },
+  ];
+
+  let chosenAnchor = anchors[0];
+  for (const anchor of anchors) {
+    let hasOverlap = false;
+
+    if (hlType === 'ui' && hlRect && rectsOverlap(anchor, hlRect, 4)) {
+      hasOverlap = true;
+    }
+
+    if (gs.shop?.open && anchor.x >= 200) {
+      hasOverlap = true;
+    }
+
+    for (const c of gs.coins) {
+      if (!c.collected && !c.dead) {
+        const cr = { x: c.x / 2 - 8, y: c.y / 2 - 8, w: 16, h: 16 };
+        if (rectsOverlap(anchor, cr, 6)) {
+          hasOverlap = true;
+          break;
+        }
+      }
+    }
+
+    if (!hasOverlap) {
+      for (const a of gs.aliens) {
+        if (!a.dead) {
+          const ar = { x: a.x / 2 - 20, y: a.y / 2 - 20, w: 40, h: 40 };
+          if (rectsOverlap(anchor, ar, 6)) {
+            hasOverlap = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!hasOverlap) {
+      for (const p of gs.food) {
+        if (!p.dead) {
+          const pr = { x: p.x / 2 - 4, y: p.y / 2 - 4, w: 8, h: 8 };
+          if (rectsOverlap(anchor, pr, 4)) {
+            hasOverlap = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!hasOverlap && tapZoneRect && rectsOverlap(anchor, tapZoneRect, 4)) {
+      hasOverlap = true;
+    }
+
+    if (!hasOverlap) {
+      chosenAnchor = anchor;
+      break;
+    }
+  }
+
+  // Update boxRect on GameState so click detection knows exact logical coords
+  if (gs.tutorialDialogue) {
+    gs.tutorialDialogue.boxRect = chosenAnchor;
+  }
+
+  // 4. Render Dialogue Box (156x58 UI px panel)
+  const bx = chosenAnchor.x;
+  const by = chosenAnchor.y;
+  const bw = chosenAnchor.w;
+  const bh = chosenAnchor.h;
 
   ctx.fillStyle = PALETTE.woodDark;
   ctx.fillRect(bx, by, bw, bh);
-  ctx.fillStyle = PALETTE.woodLight;
+  ctx.fillStyle = PALETTE.gold;
   ctx.fillRect(bx + 1, by + 1, bw - 2, 1);
   ctx.fillRect(bx + 1, by + 1, 1, bh - 2);
   ctx.fillStyle = PALETTE.sandShade;
   ctx.fillRect(bx + 1, by + bh - 2, bw - 2, 1);
   ctx.fillRect(bx + bw - 2, by + 1, 1, bh - 2);
-  ctx.fillStyle = PALETTE.wood;
+  ctx.fillStyle = '#0b1320';
   ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
 
-  drawFittedText(ctx, pageText, bx + 10, by + 6, {
-    w: bw - 20,
-    h: bh - 12,
+  // 5. Shelly Portrait (22x22)
+  const curPage = gs.tutorialDialogue?.pageIndex || 0;
+  const pageKey = step.pages[curPage] || step.pages[0];
+  let fullText = t(pageKey);
+  if (pageKey === 'tut.3.1') {
+    fullText += ` (${Math.min(3, gs.tutorialEatenCount || 0)}/3)`;
+  }
+  const charTimer = gs.tutorialDialogue?.charTimer || 0;
+  const isTyping = !gs.tutorialDialogue?.fullyRevealed && (Math.floor(charTimer * 40) < fullText.length);
+  const visibleChars = gs.tutorialDialogue?.fullyRevealed ? fullText.length : Math.min(fullText.length, Math.floor(charTimer * 40));
+  const typedText = fullText.slice(0, visibleChars);
+
+  const isBlinking = (gs.time % 3.0) < 0.18;
+  const mouthOpen = isTyping && (Math.floor(gs.time * 4) % 2 === 0);
+  drawShellyPortrait(ctx, bx + 5, by + 5, isBlinking, mouthOpen);
+
+  // 6. Dialogue Text (up to 4 lines of normal font, typed at 40 chars/s, small-font fallback)
+  drawFittedText(ctx, typedText, bx + 32, by + 6, {
+    w: 118,
+    h: 44,
     maxLines: 4,
-    align: 'center',
-    valign: 'middle',
+    align: 'left',
+    valign: 'top',
     color: 'cream',
+    fonts: ['normal', 'small'],
   });
 
-  // Render Highlight
-  if (step.highlight) {
-    if (step.highlight === 'water') {
-      // Highlight water area with a subtle glow
-      ctx.strokeStyle = PALETTE.glow;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 4]);
-      ctx.strokeRect(30, 60, 340, 210);
-      ctx.setLineDash([]);
-    } else if (step.highlight === 'shop:buyFish') {
-      // Highlight Guppy in shop
-      // This is harder as it depends on shop being open and scroll
-      if (gs.shop.open && gs.shop.selectedCategory === 'pets') {
-        ctx.strokeStyle = PALETTE.glow;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(200, 100, 140, 100); // Placeholder
-      }
-    }
+  // 7. Blinking ▼ on tap-to-continue pages
+  const isTapToContinue = step.allow.includes('dialogue:advance') || (gs.tutorialDialogue?.pageIndex || 0) < step.pages.length - 1;
+  if (isTapToContinue && !isTyping && (Math.floor(gs.time * 3) % 2 === 0)) {
+    ctx.fillStyle = PALETTE.gold;
+    const vx = bx + 144;
+    const vy = by + 47;
+    ctx.beginPath();
+    ctx.moveTo(vx, vy);
+    ctx.lineTo(vx + 6, vy);
+    ctx.lineTo(vx + 3, vy + 4);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // 8. "ONE STEP AT A TIME!" banner
+  if (gs.tutorialWrongTapAlert && gs.tutorialWrongTapAlert > 0) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(153, 27, 27, 0.95)';
+    ctx.fillRect(80, 8, 240, 18);
+    ctx.strokeStyle = PALETTE.gold;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(80, 8, 240, 18);
+    drawFittedText(ctx, 'ONE STEP AT A TIME!', 80, 9, {
+      w: 240,
+      h: 16,
+      maxLines: 1,
+      align: 'center',
+      valign: 'middle',
+      color: 'cream',
+      fonts: ['normal'],
+    });
+    ctx.restore();
   }
 }
 // Call renderAudioPanel inside renderPixelScene...

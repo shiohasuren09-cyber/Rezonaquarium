@@ -3,13 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { onModeChange, InputMode } from './inputModule.ts';
 
 // --------------------------------------------------------------------------
 // AUDIO SETTINGS
 // --------------------------------------------------------------------------
 export const game = {
-  mode: 'levels' as 'levels' | 'sandbox',
+  mode: 'levels' as 'levels' | 'sandbox' | 'tutorial',
   sandbox: {
     freeShop: true,
     aliens: false,
@@ -495,7 +494,7 @@ export function playCoinExpireSound() {
   gainNode.gain.linearRampToValueAtTime(0, now + 0.02);
 }
 
-export function playShopSound() {
+export function playShopSound(gainMultiplier: number = 1.0) {
   if (!claimVoice('shop')) return;
   if (!ctx) return;
   const now = ctx.currentTime;
@@ -506,7 +505,7 @@ export function playShopSound() {
     const gain = ctx.createGain();
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(freq, now + i * 0.03);
-    registerVoice('shop', osc, gain, 0.22, true);
+    registerVoice('shop', osc, gain, 0.22 * gainMultiplier, true);
   });
 }
 
