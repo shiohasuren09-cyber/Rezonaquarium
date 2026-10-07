@@ -5,9 +5,9 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { PALETTE, SPRITES, drawBitmapText, type PaletteKey } from './pixelEngine.ts';
-import { renderPixelScene, invalidateCachedBackdrop } from './pixelRenderer.ts';
+import { renderPixelScene, invalidateCachedBackdrop, profileAudit } from './pixelRenderer.ts';
 import { initializeInput, shutdownInput, drainActions, onUnlock, input } from './inputModule.ts';
-import { t, MULTI_TRANSLATIONS, fitText } from './textEngine.ts';
+import { t, MULTI_TRANSLATIONS, fitText, setLanguage, getLanguage, type Language } from './textEngine.ts';
 import {
   initAudio,
   resumeAudioContext,
@@ -426,93 +426,16 @@ export const CONFIG = {
       modes: ['levels'],
     },
 
-    // 4. DECOR (8 items)
+    // 4. THEMES
     {
-      id: 'decorCoral',
-      category: 'decor',
-      name: 'Pink Coral',
-      desc: 'Sways gently on seabed',
-      prices: [80],
-      maxLevel: 1,
-      requires: null,
-      effectId: 'decorCoral',
-      modes: ['levels', 'sandbox'],
-    },
-    {
-      id: 'decorShells',
-      category: 'decor',
-      name: 'Seashell Pile',
-      desc: 'Scattered colorful shells',
-      prices: [60],
-      maxLevel: 1,
-      requires: null,
-      effectId: 'decorShells',
-      modes: ['levels', 'sandbox'],
-    },
-    {
-      id: 'decorChest',
-      category: 'decor',
-      name: 'Treasure Chest',
-      desc: 'Opens periodically with bubbles',
-      prices: [150],
-      maxLevel: 1,
-      requires: null,
-      effectId: 'decorChest',
-      modes: ['levels', 'sandbox'],
-    },
-    {
-      id: 'decorCastle',
-      category: 'decor',
-      name: 'Mini Castle',
-      desc: 'Stone fortress with waving flag',
-      prices: [250],
-      maxLevel: 1,
-      requires: null,
-      effectId: 'decorCastle',
-      modes: ['levels', 'sandbox'],
-    },
-    {
-      id: 'decorLantern',
-      category: 'decor',
-      name: 'Glow Lantern',
-      desc: 'Hanging flickering lantern',
-      prices: [120],
-      maxLevel: 1,
-      requires: null,
-      effectId: 'decorLantern',
-      modes: ['levels', 'sandbox'],
-    },
-    {
-      id: 'decorSign',
-      category: 'decor',
-      name: 'Wooden Sign',
-      desc: 'Seabed sign reading "FISH"',
-      prices: [90],
-      maxLevel: 1,
-      requires: null,
-      effectId: 'decorSign',
-      modes: ['levels', 'sandbox'],
-    },
-    {
-      id: 'decorLagoon',
-      category: 'decor',
-      name: 'Lagoon Water',
-      desc: 'Tropical turquoise water theme',
+      id: 'themeFrutigerAero',
+      category: 'themes',
+      name: 'Frutiger Aero',
+      desc: 'Bright, energetic, bubbly tech-inspired theme',
       prices: [300],
       maxLevel: 1,
       requires: null,
-      effectId: 'decorLagoon',
-      modes: ['levels', 'sandbox'],
-    },
-    {
-      id: 'decorMidnight',
-      category: 'decor',
-      name: 'Midnight Water',
-      desc: 'Deep twilight indigo water theme',
-      prices: [300],
-      maxLevel: 1,
-      requires: null,
-      effectId: 'decorMidnight',
+      effectId: 'themeFrutigerAero',
       modes: ['levels', 'sandbox'],
     },
   ] as ShopItem[],
@@ -527,6 +450,19 @@ export const CONFIG = {
     { id: 'alien', pages: ['tut.8.1', 'tut.8.2', 'tut.8.3'], allow: ['alien:tut', 'coin:tut', 'dialogue:advance'], highlight: 'alien:tut', gate: 'gateAlien', setup: 'setupAlien', hintAfter: 8 },
     { id: 'egg', pages: ['tut.9.1', 'tut.9.2'], allow: ['dialogue:advance'], highlight: 'ui:egg', gate: 'gateNext', setup: 'setupEgg', hintAfter: 8 },
     { id: 'finish', pages: ['tut.10.1'], allow: ['dialogue:advance'], highlight: null, gate: 'gateNext', setup: 'setupFinish', hintAfter: 8 },
+  ] as {
+    id: string;
+    pages: string[];
+    allow: string[];
+    highlight: string | null;
+    gate: string;
+    setup: string;
+    hintAfter: number;
+  }[],
+  SANDBOX_TUTORIAL: [
+    { id: 'sbWelcome', pages: ['tut.sb.1.1', 'tut.sb.1.2'], allow: ['dialogue:advance', 'ui:gear'], highlight: 'ui:gear', gate: 'gateGearOpen', setup: 'setupSbWelcome', hintAfter: 8 },
+    { id: 'sbMods', pages: ['tut.sb.2.1', 'tut.sb.2.2'], allow: ['dialogue:advance', 'ui:mods', 'ui:tab:rules', 'ui:tab:cheats', 'ui:tab:spawn', 'ui:close'], highlight: 'ui:mods', gate: 'gateNext', setup: 'setupSbMods', hintAfter: 8 },
+    { id: 'sbFinish', pages: ['tut.sb.3.1'], allow: ['dialogue:advance', 'tank:water', 'ui:mods', 'ui:close'], highlight: null, gate: 'gateNext', setup: 'setupSbFinish', hintAfter: 8 },
   ] as {
     id: string;
     pages: string[];
@@ -558,7 +494,7 @@ export function isPetUnlocked(petId: string, completed?: Record<string | number,
   return comp !== undefined && comp[reqLevel] !== undefined;
 }
 
-export type ShopCategory = 'pets' | 'upgrades' | 'eggs' | 'decor';
+export type ShopCategory = 'pets' | 'upgrades' | 'eggs' | 'themes';
 
 export interface ShopItem {
   id: string;
@@ -574,9 +510,6 @@ export interface ShopItem {
 
 export interface ShopState {
   levels: Record<string, number>;
-  decorOwned: Record<string, boolean>;
-  decorShown: Record<string, boolean>;
-  theme?: { active: string };
   open: boolean;
   selectedCategory?: ShopCategory;
   scrollOffset?: number;
@@ -765,7 +698,7 @@ export interface Particle {
   color: string;
   life: number;
   maxLife: number;
-  type: 'bubble' | 'crumb' | 'sparkle' | 'ripple' | 'text' | 'slime' | 'snailDot' | 'alienDeath';
+  type: 'bubble' | 'crumb' | 'sparkle' | 'ripple' | 'text' | 'slime' | 'snailDot' | 'alienDeath' | 'confetti';
   text?: string;
   dead: boolean;
 }
@@ -781,9 +714,12 @@ export interface GameStats {
 
 // Single game state object holding state, money, and arrays
 export interface GameState {
-  state: 'TITLE' | 'PLAYING' | 'PAUSED' | 'EGG_HATCH' | 'LEVEL_COMPLETE' | 'GAME_OVER' | 'SETTINGS' | 'SANDBOX_OPTIONS' | 'LEVEL_SELECT';
+  state: 'TITLE' | 'PLAYING' | 'PAUSED' | 'EGG_HATCH' | 'LEVEL_COMPLETE' | 'GAME_OVER' | 'SETTINGS' | 'SANDBOX_OPTIONS' | 'LEVEL_SELECT' | 'CONFIRM_RESET';
   gameMode?: 'levels' | 'sandbox' | 'tutorial';
   screenShakeEnabled?: boolean;
+  waterFxHigh?: boolean;
+  fpsCap30?: boolean;
+  lowPowerMode?: boolean;
   levelSelectSelected?: number;
   completedLevels?: Record<string | number, number>;
   level: number;             // Level counter (1, 2, 3...)
@@ -822,6 +758,7 @@ export interface GameState {
   isFirstTimeCompletion?: boolean;
   hasSpawnedHatchParticles?: boolean;
   tutorialStep: number;      // 0 if not in tutorial, 1-10 for steps
+  tutorialType?: 'levels' | 'sandbox';
   isTutorial: boolean;
   tutorialDialogue?: {
     pageIndex: number;
@@ -839,6 +776,34 @@ export interface GameState {
   tutorialDiamondSpawned?: boolean;
   tutorialDiamondCollected?: boolean;
   particlesEnabled?: boolean;
+  sandboxShakeTimer?: number;
+  profileModal?: 'select' | 'selector' | 'name' | 'delete' | 'first' | 'rename' | 'new' | null;
+  profileScrollOffset?: number;
+  profileSelectedId?: string | null;
+  profileInputText?: string;
+  profileError?: 'empty' | 'taken' | 'ok' | null;
+  sandboxSavedTheme?: {
+    active: string;
+  };
+  mods?: {
+    open: boolean;
+    animTimer: number;
+    selectedTab: 'rules' | 'cheats' | 'spawn';
+    scrollOffset: number;
+  };
+  _selectorCloseRect?: { x: number; y: number; w: number; h: number };
+  _selectorListRect?: { x: number; y: number; w: number; h: number };
+  _selectorNewRect?: { x: number; y: number; w: number; h: number };
+  _selectorRenameRect?: { x: number; y: number; w: number; h: number };
+  _selectorDeleteRect?: { x: number; y: number; w: number; h: number };
+  _selectorOkRect?: { x: number; y: number; w: number; h: number };
+  _nameDialogCancelRect?: { x: number; y: number; w: number; h: number };
+  _nameDialogOkRect?: { x: number; y: number; w: number; h: number };
+  _deleteConfirmCancelRect?: { x: number; y: number; w: number; h: number };
+  _deleteConfirmDeleteRect?: { x: number; y: number; w: number; h: number };
+  _signRect?: { x: number; y: number; w: number; h: number };
+  nameFieldRect?: { x: number; y: number; w: number; h: number };
+  isInputFocused?: boolean;
 }
 
 // Zero-allocation array compactor for 60FPS mobile performance
@@ -952,6 +917,27 @@ function addParticle(gs: GameState, particle: Particle) {
   }
 }
 
+function addConfettiBurst(gs: GameState, x: number, y: number) {
+  const colors = [PALETTE.orange, PALETTE.gold, PALETTE.coral, PALETTE.waterLight, PALETTE.diamond];
+  for (let i = 0; i < 30; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 20 + Math.random() * 80;
+    addParticle(gs, {
+      id: Math.floor(Math.random() * 1000000) + 10000,
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      radius: Math.random() * 2 + 1,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      life: 0,
+      maxLife: 1.5 + Math.random() * 1.5,
+      type: 'confetti',
+      dead: false,
+    });
+  }
+}
+
 export function dispatchSyntheticShopTap(elementId: string) {
   const canvas = document.querySelector('canvas');
   if (!canvas) return;
@@ -1051,7 +1037,7 @@ export function hitTestShop(uiX: number, uiY: number, gs: GameState): { id: stri
 
   // Check category tabs with 44px touch height (Pets, Upgrades, Decor)
   const tabY = mY + 38;
-  let categories: ShopCategory[] = ['pets', 'upgrades', 'decor'];
+  let categories: ShopCategory[] = ['pets', 'upgrades', 'themes'];
   if (gs.isTutorial) {
     categories = ['pets', 'upgrades'];
   }
@@ -1128,14 +1114,7 @@ const EFFECT_MAP: Record<string, () => void> = {
   eggPiece1: () => {},
   eggPiece2: () => {},
   eggPiece3: () => {},
-  decorCoral: () => {},
-  decorShells: () => {},
-  decorChest: () => {},
-  decorCastle: () => {},
-  decorLantern: () => {},
-  decorSign: () => {},
-  decorLagoon: () => {},
-  decorMidnight: () => {},
+  themeFrutigerAero: () => {},
   pet_pip: () => {},
   pet_marina: () => {},
   pet_dot: () => {},
@@ -1344,48 +1323,17 @@ export function purchase(
         gs.eggPopTimers[2] = 0.001;
         gs.state = 'EGG_HATCH';
         gs.eggHatchTimer = 0;
+        gs.hasSpawnedHatchParticles = false;
+        gs.shop.open = false;
+        gs.shop.animTimer = 0;
         playHatchSound();
       },
-      decorCoral: () => {
-        gs.shop.decorOwned['decorCoral'] = true;
-        gs.shop.decorShown['decorCoral'] = true;
-        invalidateCachedBackdrop();
-      },
-      decorShells: () => {
-        gs.shop.decorOwned['decorShells'] = true;
-        gs.shop.decorShown['decorShells'] = true;
-        invalidateCachedBackdrop();
-      },
-      decorChest: () => {
-        gs.shop.decorOwned['decorChest'] = true;
-        gs.shop.decorShown['decorChest'] = true;
-        invalidateCachedBackdrop();
-      },
-      decorCastle: () => {
-        gs.shop.decorOwned['decorCastle'] = true;
-        gs.shop.decorShown['decorCastle'] = true;
-        invalidateCachedBackdrop();
-      },
-      decorLantern: () => {
-        gs.shop.decorOwned['decorLantern'] = true;
-        gs.shop.decorShown['decorLantern'] = true;
-        invalidateCachedBackdrop();
-      },
-      decorSign: () => {
-        gs.shop.decorOwned['decorSign'] = true;
-        gs.shop.decorShown['decorSign'] = true;
-        invalidateCachedBackdrop();
-      },
-      decorLagoon: () => {
-        gs.shop.decorOwned['decorLagoon'] = true;
-        gs.shop.decorShown['decorLagoon'] = true;
-        gs.shop.decorShown['decorMidnight'] = false;
-        invalidateCachedBackdrop();
-      },
-      decorMidnight: () => {
-        gs.shop.decorOwned['decorMidnight'] = true;
-        gs.shop.decorShown['decorMidnight'] = true;
-        gs.shop.decorShown['decorLagoon'] = false;
+      themeFrutigerAero: () => {
+        if (!saveState.themes.owned.includes('themeFrutigerAero')) {
+          saveState.themes.owned.push('themeFrutigerAero');
+        }
+        saveState.themes.active = 'themeFrutigerAero';
+        saveProfiles();
         invalidateCachedBackdrop();
       },
       pet_pip: () => { if (!gs.pets.some(p => p.speciesId === 'pip')) gs.pets.push(createRewardPet(nextId, 'pip', 1)); },
@@ -1469,220 +1417,716 @@ export function purchase(
   return { ok: true };
 }
 
-export let saveState = {
-  v: 1,
-  username: '',
-  completed: {} as Record<string, number>,
+export interface UserProgress {
+  completed: Record<string, number>;
   themes: {
-    owned: ['default'] as string[],
-    active: 'default' as string,
-  },
-  tutorial: false,
+    owned: string[];
+    active: string;
+  };
+  tutorial: boolean;
+  sandboxTutorial: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  created: number;
+  lastPlayed: number;
+  progress: UserProgress;
+}
+
+export interface ProfilesStore {
+  v: 1;
+  current: string | null;
+  order: string[];
+  users: Record<string, UserProfile>;
+}
+
+export const profilesStore: ProfilesStore = {
+  v: 1,
+  current: null,
+  order: [],
+  users: {},
 };
 
-let sessionTutorialCompleted = false;
-let lastWriteTime = 0;
-let pendingSaveTimeout: any = null;
-
-// Strictly purge any legacy/debug saves on module execution to guarantee brand-new account state
-if (typeof window !== 'undefined') {
-  try {
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && (k.startsWith('tankProgress') || k.startsWith('tankCurrentUser') || k.startsWith('insanitank'))) {
-        keysToRemove.push(k);
-      }
-    }
-    keysToRemove.forEach(k => localStorage.removeItem(k));
-  } catch (e) {}
-}
-
-export function isTutorialNeeded(): boolean {
-  if (sessionTutorialCompleted) return false;
-  if (saveState.tutorial) return false;
-  if (Object.keys(saveState.completed).length > 0) return false;
-  return true;
-}
-
-export function loadProgress(username?: string) {
-  try {
-    let user = username || '';
-    if (typeof localStorage !== 'undefined') {
-      try {
-        user = user || localStorage.getItem('tankCurrentUser') || 'default';
-      } catch (err) {
-        user = 'default';
-      }
-    } else {
-      user = 'default';
-    }
-
-    let raw: string | null = null;
-    if (typeof localStorage !== 'undefined') {
-      try {
-        raw = localStorage.getItem(`tankProgressV1_${user}`) || localStorage.getItem('tankProgressV1');
-      } catch (e) {
-        // localStorage unavailable
-      }
-    }
-
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') {
-        const validatedCompleted: Record<string, number> = {};
-        if (parsed.completed && typeof parsed.completed === 'object') {
-          for (const k of Object.keys(parsed.completed)) {
-            const numKey = parseInt(k, 10);
-            if (numKey >= 1 && numKey <= 10) {
-              const val = parsed.completed[k];
-              if (typeof val === 'number' && Number.isFinite(val) && val > 0) {
-                validatedCompleted[k] = val;
-              }
-            }
-          }
-        }
-
-        const validThemes = ['default', 'decorLagoon', 'decorMidnight'];
-        const validatedOwned: string[] = ['default'];
-        if (parsed.themes && Array.isArray(parsed.themes.owned)) {
-          for (const tId of parsed.themes.owned) {
-            if (validThemes.includes(tId) && !validatedOwned.includes(tId)) {
-              validatedOwned.push(tId);
-            }
-          }
-        }
-
-        let validatedActive = 'default';
-        if (parsed.themes && typeof parsed.themes.active === 'string' && validThemes.includes(parsed.themes.active)) {
-          validatedActive = parsed.themes.active;
-        }
-
-        // The field is validated on load and defaults to false, a save with any completed level counts as done,
-        // and if localStorage is unavailable an in-memory flag makes it run once per session.
-        let validatedTutorial = false;
-        if (Object.keys(validatedCompleted).length > 0) {
-          validatedTutorial = true;
-        } else if (parsed.tutorial === true) {
-          validatedTutorial = true;
-        } else if (sessionTutorialCompleted) {
-          validatedTutorial = true;
-        }
-
-        saveState = {
-          v: 1,
-          username: user,
-          completed: validatedCompleted,
-          themes: {
-            owned: validatedOwned,
-            active: validatedActive,
-          },
-          tutorial: validatedTutorial,
-        };
-        return;
-      }
-    }
-
-    // New user default state
-    saveState = {
-      v: 1,
-      username: user,
-      completed: {},
-      themes: { owned: ['default'], active: 'default' },
-      tutorial: sessionTutorialCompleted ? true : false,
-    };
-  } catch (e) {
-    console.error("Failed to load progress from localStorage", e);
-    saveState = {
-      v: 1,
-      username: 'default',
-      completed: {},
-      themes: { owned: ['default'], active: 'default' },
-      tutorial: sessionTutorialCompleted ? true : false,
-    };
-  }
-}
-
-export function resetProgress() {
-  if (typeof window === 'undefined') return;
-  const user = saveState.username;
-  if (!user) return;
-
-  saveState = {
-    v: 1,
-    username: user,
+export function createDefaultProgress(): UserProgress {
+  return {
     completed: {},
     themes: { owned: ['default'], active: 'default' },
     tutorial: false,
+    sandboxTutorial: false,
   };
-  sessionTutorialCompleted = false;
-  saveProgress();
+}
+
+export let saveState = game.progress;
+
+let sessionTutorialCompleted = false;
+let lastProfilesSaveTime = 0;
+let saveProfilesTimeout: any = null;
+
+export function generateProfileId(): string {
+  const rand = Math.random().toString(36).slice(2, 10).padEnd(8, '0');
+  return `u${rand}`;
+}
+
+export function validateName(raw: string, ignoreId?: string): 'empty' | 'taken' | 'ok' {
+  if (!raw) return 'empty';
+  const clean = raw.normalize('NFC').toUpperCase().trim().replace(/\s+/g, ' ');
+  if (clean.length === 0) return 'empty';
+
+  const chars = Array.from(clean);
+  if (chars.length < 1 || chars.length > 12) return 'empty';
+
+  const allowedRegex = /^[A-Z0-9 ÁÉÍÓÚÑÀÈÌÒÙÂÊÎÔÛÄËÏÖÜ\-\'\.]+$/;
+  if (!allowedRegex.test(clean)) return 'empty';
+
+  for (const uid in profilesStore.users) {
+    if (ignoreId && uid === ignoreId) continue;
+    const existingName = profilesStore.users[uid].name.normalize('NFC').toUpperCase().trim().replace(/\s+/g, ' ');
+    if (existingName === clean) {
+      return 'taken';
+    }
+  }
+
+  return 'ok';
+}
+
+export function checkStorageOk(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const testKey = '__storage_test__';
+    localStorage.setItem(testKey, '1');
+    localStorage.removeItem(testKey);
+    game.storageOk = true;
+    return true;
+  } catch (e) {
+    game.storageOk = false;
+    return false;
+  }
+}
+
+export function saveProfilesImmediately() {
+  if (!checkStorageOk()) return;
+  try {
+    const data = JSON.stringify(profilesStore);
+    localStorage.setItem('tankProfilesV1', data);
+  } catch (e) {
+    console.error('Failed to write profiles to localStorage', e);
+    game.storageOk = false;
+  }
+}
+
+export function saveProfiles() {
+  if (!checkStorageOk()) return;
+  const now = Date.now();
+  if (now - lastProfilesSaveTime >= 500) {
+    lastProfilesSaveTime = now;
+    if (saveProfilesTimeout) {
+      clearTimeout(saveProfilesTimeout);
+      saveProfilesTimeout = null;
+    }
+    saveProfilesImmediately();
+  } else if (!saveProfilesTimeout) {
+    saveProfilesTimeout = setTimeout(() => {
+      saveProfilesTimeout = null;
+      saveProfiles();
+    }, 500 - (now - lastProfilesSaveTime));
+  }
+}
+
+export function setProfile(id: string | null, gs?: GameState) {
+  saveProfilesImmediately();
+
+  if (id && profilesStore.users[id]) {
+    profilesStore.current = id;
+    game.profile = profilesStore.users[id];
+    game.progress = game.profile.progress;
+    saveState = game.progress;
+  } else {
+    profilesStore.current = null;
+    game.profile = null;
+    game.progress = createDefaultProgress();
+    saveState = game.progress;
+  }
+
+  if (gs) {
+    gs.completedLevels = { ...game.progress.completed };
+    gs.levelSelectSelected = 1;
+    gs.isTutorial = false;
+    gs.tutorialStep = 0;
+    syncGameFromSaveState(gs);
+    invalidateCachedBackdrop();
+  }
+
+  saveProfiles();
+}
+
+export function createProfile(name: string): UserProfile | null {
+  if (profilesStore.order.length >= 8) return null;
+  const validation = validateName(name);
+  if (validation !== 'ok') return null;
+
+  const cleanName = name.normalize('NFC').toUpperCase().trim().replace(/\s+/g, ' ').slice(0, 12);
+  const id = generateProfileId();
+  const newProg = createDefaultProgress();
+  const newProf: UserProfile = {
+    id,
+    name: cleanName,
+    created: Date.now(),
+    lastPlayed: Date.now(),
+    progress: newProg,
+  };
+
+  profilesStore.users[id] = newProf;
+  profilesStore.order.push(id);
+  saveProfiles();
+  return newProf;
+}
+
+export function renameProfile(id: string, newName: string): boolean {
+  if (!profilesStore.users[id]) return false;
+  const validation = validateName(newName, id);
+  if (validation !== 'ok') return false;
+
+  const cleanName = newName.normalize('NFC').toUpperCase().trim().replace(/\s+/g, ' ').slice(0, 12);
+  profilesStore.users[id].name = cleanName;
+  saveProfiles();
+  return true;
+}
+
+export function deleteProfile(id: string): string | null {
+  if (!profilesStore.users[id]) return null;
+
+  delete profilesStore.users[id];
+  profilesStore.order = profilesStore.order.filter((u) => u !== id);
+
+  if (profilesStore.current === id) {
+    let mostRecentId: string | null = null;
+    let maxPlayed = -1;
+    for (const uid in profilesStore.users) {
+      if (profilesStore.users[uid].lastPlayed > maxPlayed) {
+        maxPlayed = profilesStore.users[uid].lastPlayed;
+        mostRecentId = uid;
+      }
+    }
+    profilesStore.current = mostRecentId;
+    if (mostRecentId) {
+      setProfile(mostRecentId);
+    } else {
+      game.profile = null;
+      game.progress = createDefaultProgress();
+      saveState = game.progress;
+    }
+  }
+
+  saveProfiles();
+  return profilesStore.current;
+}
+
+export function loadProfiles() {
+  game.storageOk = checkStorageOk();
+  let raw: string | null = null;
+  if (game.storageOk) {
+    try {
+      raw = localStorage.getItem('tankProfilesV1');
+    } catch (e) {
+      raw = null;
+    }
+  }
+
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.v === 1 && typeof parsed.users === 'object') {
+        const validUsers: Record<string, UserProfile> = {};
+        const validOrder: string[] = [];
+
+        for (const uid in parsed.users) {
+          const u = parsed.users[uid];
+          if (u && typeof u === 'object' && typeof u.id === 'string' && typeof u.name === 'string') {
+            const cleanName = u.name.normalize('NFC').toUpperCase().trim().replace(/\s+/g, ' ').slice(0, 12);
+            if (cleanName.length > 0) {
+              const validatedCompleted: Record<string, number> = {};
+              if (u.progress && typeof u.progress.completed === 'object') {
+                for (const k in u.progress.completed) {
+                  const numKey = parseInt(k, 10);
+                  if (numKey >= 1 && numKey <= 10 && typeof u.progress.completed[k] === 'number') {
+                    validatedCompleted[k] = u.progress.completed[k];
+                  }
+                }
+              }
+              const validThemesList = ['default', 'themeFrutigerAero', 'decorLagoon', 'decorMidnight'];
+              const ownedThemes: string[] = ['default'];
+              if (u.progress?.themes?.owned && Array.isArray(u.progress.themes.owned)) {
+                for (const tId of u.progress.themes.owned) {
+                  if (validThemesList.includes(tId) && !ownedThemes.includes(tId)) {
+                    ownedThemes.push(tId);
+                  }
+                }
+              }
+              let activeTheme = 'default';
+              if (u.progress?.themes?.active && validThemesList.includes(u.progress.themes.active)) {
+                activeTheme = u.progress.themes.active;
+              }
+
+              validUsers[uid] = {
+                id: uid,
+                name: cleanName,
+                created: typeof u.created === 'number' ? u.created : Date.now(),
+                lastPlayed: typeof u.lastPlayed === 'number' ? u.lastPlayed : Date.now(),
+                progress: {
+                  completed: validatedCompleted,
+                  themes: { owned: ownedThemes, active: activeTheme },
+                  tutorial: u.progress?.tutorial === true,
+                  sandboxTutorial: u.progress?.sandboxTutorial === true,
+                },
+              };
+              validOrder.push(uid);
+            }
+          }
+        }
+
+        profilesStore.users = validUsers;
+        profilesStore.order = validOrder;
+
+        let currentId = parsed.current;
+        if (!currentId || !validUsers[currentId]) {
+          let mostRecentId: string | null = null;
+          let maxPlayed = -1;
+          for (const uid in validUsers) {
+            if (validUsers[uid].lastPlayed > maxPlayed) {
+              maxPlayed = validUsers[uid].lastPlayed;
+              mostRecentId = uid;
+            }
+          }
+          currentId = mostRecentId;
+        }
+
+        profilesStore.current = currentId;
+        if (currentId && validUsers[currentId]) {
+          setProfile(currentId);
+        } else {
+          game.profile = null;
+          game.progress = createDefaultProgress();
+          saveState = game.progress;
+        }
+        return;
+      }
+    } catch (e) {
+      console.error('Failed to parse tankProfilesV1', e);
+    }
+  }
+
+  // Check legacy migration ('tankProgressV1' or 'tankProgressV1_default')
+  let legacyRaw: string | null = null;
+  if (game.storageOk) {
+    try {
+      legacyRaw = localStorage.getItem('tankProgressV1_default') || localStorage.getItem('tankProgressV1');
+    } catch (e) {}
+  }
+
+  if (legacyRaw) {
+    try {
+      const parsedLegacy = JSON.parse(legacyRaw);
+      if (parsedLegacy && typeof parsedLegacy === 'object') {
+        const legacyId = generateProfileId();
+        const legacyProg: UserProgress = {
+          completed: parsedLegacy.completed || {},
+          themes: parsedLegacy.themes || { owned: ['default'], active: 'default' },
+          tutorial: parsedLegacy.tutorial === true,
+          sandboxTutorial: parsedLegacy.sandboxTutorial === true,
+        };
+        const legacyUser: UserProfile = {
+          id: legacyId,
+          name: 'PLAYER',
+          created: Date.now(),
+          lastPlayed: Date.now(),
+          progress: legacyProg,
+        };
+
+        profilesStore.users[legacyId] = legacyUser;
+        profilesStore.order = [legacyId];
+        profilesStore.current = legacyId;
+
+        saveProfilesImmediately();
+        setProfile(legacyId);
+        return;
+      }
+    } catch (e) {}
+  }
+
+  profilesStore.v = 1;
+  profilesStore.current = null;
+  profilesStore.order = [];
+  profilesStore.users = {};
+  game.profile = null;
+  game.progress = createDefaultProgress();
+  saveState = game.progress;
 }
 
 export function saveProgress() {
-  if (!saveState.username) return;
-  const now = Date.now();
-  if (now - lastWriteTime >= 500) {
-    lastWriteTime = now;
-    if (pendingSaveTimeout) {
-      clearTimeout(pendingSaveTimeout);
-      pendingSaveTimeout = null;
-    }
-    try {
-      const data = JSON.stringify(saveState);
-      localStorage.setItem(`tankProgressV1_${saveState.username}`, data);
-      localStorage.setItem('tankProgressV1', data);
-    } catch (e) {
-      console.error("Failed to save progress to localStorage", e);
-    }
-  } else {
-    if (!pendingSaveTimeout) {
-      pendingSaveTimeout = setTimeout(() => {
-        pendingSaveTimeout = null;
-        saveProgress();
-      }, 500 - (now - lastWriteTime));
-    }
+  saveProfiles();
+}
+
+export function resetProgress() {
+  if (game.profile) {
+    game.profile.progress = createDefaultProgress();
+    game.progress = game.profile.progress;
+    saveState = game.progress;
+    sessionTutorialCompleted = false;
+    saveProfiles();
+  }
+}
+
+export function syncGameFromSaveState(gs: GameState) {
+  if (saveState) {
+    gs.completedLevels = { ...saveState.completed };
   }
 }
 
 export function syncSaveStateFromGame(gs: GameState) {
-  if (gs.isTutorial) return; // No changes to progress or themes during tutorial!
-  const owned: string[] = ['default'];
-  if (gs.shop?.decorOwned?.['decorLagoon']) owned.push('decorLagoon');
-  if (gs.shop?.decorOwned?.['decorMidnight']) owned.push('decorMidnight');
-  saveState.themes.owned = owned;
-
-  let active = 'default';
-  if (gs.shop?.decorShown?.['decorLagoon']) active = 'decorLagoon';
-  else if (gs.shop?.decorShown?.['decorMidnight']) active = 'decorMidnight';
-  saveState.themes.active = active;
-
-  saveProgress();
+  if (saveState && !gs.isTutorial) {
+    if (gs.completedLevels) {
+      saveState.completed = { ...gs.completedLevels };
+    }
+    saveProfiles();
+  }
 }
 
-export function syncGameFromSaveState(gs: GameState) {
-  gs.completedLevels = { ...saveState.completed };
-  if (!gs.shop) return;
-  gs.shop.decorOwned = gs.shop.decorOwned || {};
-  gs.shop.decorShown = gs.shop.decorShown || {};
-
-  gs.shop.decorOwned['decorLagoon'] = saveState.themes.owned.includes('decorLagoon');
-  gs.shop.decorOwned['decorMidnight'] = saveState.themes.owned.includes('decorMidnight');
-
-  gs.shop.decorShown['decorLagoon'] = saveState.themes.active === 'decorLagoon';
-  gs.shop.decorShown['decorMidnight'] = saveState.themes.active === 'decorMidnight';
+export function isTutorialNeeded(): boolean {
+  if (!game.progress) return true;
+  return !game.progress.tutorial && !sessionTutorialCompleted;
 }
 
-// Call loadProgress on startup if user is known
+export let sessionSandboxTutorialCompleted = false;
+
+export function isSandboxTutorialNeeded(): boolean {
+  if (!game.progress) return true;
+  return !game.progress.sandboxTutorial && !sessionSandboxTutorialCompleted;
+}
+
+export function loadProgress(id?: string) {
+  loadProfiles();
+  if (id && profilesStore.users[id]) {
+    setProfile(id);
+  }
+}
+
+export function cheatsAllowed(gs?: GameState): boolean {
+  return game.mode === 'sandbox' || gs?.gameMode === 'sandbox' || gs?.tutorialType === 'sandbox';
+}
+
+export function addCheatMoney(gs: GameState, amount: number) {
+  if (cheatsAllowed(gs)) {
+    gs.money = Math.min(999999, gs.money + amount);
+  }
+}
+
+export function collectAllCoins(gs: GameState) {
+  if (!cheatsAllowed(gs)) return;
+  for (const c of gs.coins) {
+    if (!c.dead && !c.collected) {
+      c.collected = true;
+      gs.money = Math.min(999999, gs.money + c.value);
+    }
+  }
+}
+
+export function maxUpgrades(gs: GameState) {
+  if (!cheatsAllowed(gs)) return;
+  gs.foodLimit = 5;
+  gs.stats.foodLimit = 5;
+  gs.foodQualityTier = 2;
+  gs.stats.foodQualityTier = 2;
+  gs.stats.pelletValue = 3;
+  gs.weaponUpgradeLevel = 2;
+  gs.stats.weaponLevel = 2;
+  gs.stats.clickDamage = 4;
+}
+
+export function getCaps(gs: GameState) {
+  const isLimitBreaker = game.mode === 'sandbox' && game.sandbox?.limitBreaker;
+  return {
+    fish: isLimitBreaker ? 30 : 15,
+    carnivore: isLimitBreaker ? 4 : 2,
+    snail: isLimitBreaker ? 3 : 1,
+    pet: isLimitBreaker ? 3 : 1,
+  };
+}
+
+export interface SandboxSpawnItem {
+  id: string;
+  label: string;
+  speciesId?: RewardPet['speciesId'];
+  level?: number;
+}
+
+export function getSandboxSpawnList(gs?: GameState): SandboxSpawnItem[] {
+  const comp = gs?.completedLevels || saveState.completed;
+  const list: SandboxSpawnItem[] = [
+    { id: 'spawnFish', label: t('sandbox.spawnFish') },
+    { id: 'carnivore', label: t('sandbox.carnivore') },
+    { id: 'snail', label: t('sandbox.snail') },
+    { id: 'spawnGargo', label: t('sandbox.spawnGargo') },
+    { id: 'killAliens', label: t('sandbox.killAliens') },
+  ];
+
+  // Only include pets that are unlockable and have been unlocked by the player in level mode
+  for (const sp of CONFIG.SPECIES) {
+    if (isPetUnlocked('pet_' + sp.id, comp)) {
+      list.push({
+        id: 'pet_' + sp.id,
+        label: sp.name,
+        speciesId: sp.id as RewardPet['speciesId'],
+        level: sp.level,
+      });
+    }
+  }
+
+  return list;
+}
+
+// Call loadProfiles and restore language on startup
 if (typeof window !== 'undefined') {
-  const user = localStorage.getItem('tankCurrentUser');
-  if (user) loadProgress(user);
+  try {
+    const savedLang = localStorage.getItem('tankLanguage') as Language;
+    if (savedLang && ['en', 'es', 'fr', 'de', 'pt', 'it'].includes(savedLang)) {
+      setLanguage(savedLang);
+    }
+  } catch (e) {}
+  loadProfiles();
 }
+
+function getTileableWoodPlankDataUrl(): string {
+  if (typeof document === 'undefined') return '';
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  const plankH = 16;
+  for (let p = 0; p < 4; p++) {
+    const yStart = p * plankH;
+    ctx.fillStyle = p % 2 === 0 ? '#a8693a' : '#c07a45';
+    ctx.fillRect(0, yStart, 64, plankH);
+
+    ctx.fillStyle = '#3e2230';
+    ctx.fillRect(0, yStart + plankH - 1, 64, 1);
+
+    ctx.fillStyle = '#e0a368';
+    ctx.fillRect(0, yStart, 64, 1);
+
+    ctx.fillStyle = '#6b3f2a';
+    if (p === 0) {
+      ctx.fillRect(5, yStart + 4, 18, 1);
+      ctx.fillRect(28, yStart + 8, 30, 1);
+      ctx.fillRect(12, yStart + 10, 4, 2);
+      ctx.fillRect(10, yStart + 9, 8, 1);
+      ctx.fillRect(10, yStart + 12, 8, 1);
+    } else if (p === 1) {
+      ctx.fillRect(10, yStart + 6, 25, 1);
+      ctx.fillRect(40, yStart + 11, 15, 1);
+    } else if (p === 2) {
+      ctx.fillRect(2, yStart + 12, 40, 1);
+      ctx.fillRect(48, yStart + 6, 4, 2);
+      ctx.fillRect(46, yStart + 5, 8, 1);
+      ctx.fillRect(46, yStart + 8, 8, 1);
+    } else if (p === 3) {
+      ctx.fillRect(15, yStart + 5, 35, 1);
+    }
+
+    ctx.fillStyle = '#3e2230';
+    ctx.fillRect(6, yStart + 7, 2, 2);
+    ctx.fillRect(57, yStart + 7, 2, 2);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(6, yStart + 7, 1, 1);
+    ctx.fillRect(57, yStart + 7, 1, 1);
+  }
+
+  return canvas.toDataURL();
+}
+
+const LeftRailProps: React.FC<{ width: number; height: number }> = ({ width, height }) => {
+  if (width < 24) return null;
+  const scale = Math.min(1.0, (width - 8) / 80);
+  const propW = 80 * scale;
+  
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        paddingTop: '40px',
+        paddingBottom: '40px',
+        boxSizing: 'border-box',
+      }}
+    >
+      <div style={{ width: `${propW}px`, height: `${propW * 1.5}px`, position: 'relative' }}>
+        <svg
+          viewBox="0 0 80 120"
+          style={{ width: '100%', height: '100%' }}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M 10,10 L 70,110 M 20,10 L 75,100 M 30,10 L 80,90 M 40,10 L 80,70 M 50,10 L 80,50
+               M 70,10 L 10,110 M 60,10 L 5,100 M 50,10 L 0,90 M 40,10 L 0,70 M 30,10 L 0,50"
+            stroke="#94a3b8"
+            strokeWidth="1.5"
+            strokeOpacity="0.4"
+            fill="none"
+          />
+          <path d="M 5,5 Q 40,15 75,5" stroke="#78350f" strokeWidth="2.5" fill="none" />
+          <ellipse cx="20" cy="11" rx="5" ry="7" fill="#b45309" stroke="#451a03" strokeWidth="1" />
+          <ellipse cx="19" cy="9" rx="2" ry="3" fill="#f59e0b" />
+          <ellipse cx="40" cy="13" rx="5" ry="7" fill="#b45309" stroke="#451a03" strokeWidth="1" />
+          <ellipse cx="39" cy="11" rx="2" ry="3" fill="#f59e0b" />
+          <ellipse cx="60" cy="10" rx="5" ry="7" fill="#b45309" stroke="#451a03" strokeWidth="1" />
+          <ellipse cx="59" cy="8" rx="2" ry="3" fill="#f59e0b" />
+        </svg>
+      </div>
+
+      <div style={{ width: `${propW}px`, height: `${propW * 1.5}px`, position: 'relative' }}>
+        <svg
+          viewBox="0 0 80 120"
+          style={{ width: '100%', height: '100%' }}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path d="M 40,0 L 40,30 M 15,30 L 65,30" stroke="#4b5563" strokeWidth="3" strokeLinecap="round" />
+          <path d="M 15,30 Q 40,15 65,30" stroke="#374151" strokeWidth="2" fill="none" />
+          <path d="M 25,30 L 55,30 L 60,42 L 20,42 Z" fill="#1f2937" stroke="#111827" strokeWidth="1" />
+          <path d="M 28,31 L 52,31" stroke="#9ca3af" strokeWidth="1" />
+          <rect x="25" y="42" width="30" height="38" rx="3" fill="#93c5fd" fillOpacity="0.25" stroke="#1f2937" strokeWidth="1.5" />
+          <line x1="33" y1="42" x2="33" y2="80" stroke="#111827" strokeWidth="1" />
+          <line x1="47" y1="42" x2="47" y2="80" stroke="#111827" strokeWidth="1" />
+          <circle cx="40" cy="62" r="14" fill="#fbbf24" opacity="0.15" />
+          <path
+            className="lantern-flame"
+            d="M 40,48 Q 46,58 40,70 Q 34,58 40,48 Z"
+            fill="#f59e0b"
+            stroke="#b45309"
+            strokeWidth="0.5"
+            style={{
+              transformOrigin: '40px 70px',
+              animation: 'lantern-flicker 1.8s infinite ease-in-out',
+            }}
+          />
+          <path
+            className="lantern-flame-inner"
+            d="M 40,54 Q 43,61 40,68 Q 37,61 40,54 Z"
+            fill="#fde047"
+            style={{
+              transformOrigin: '40px 68px',
+              animation: 'lantern-flicker 1.8s infinite ease-in-out',
+              animationDelay: '0.2s',
+            }}
+          />
+          <rect x="23" y="80" width="34" height="8" rx="1" fill="#1f2937" stroke="#111827" strokeWidth="1" />
+          <rect x="25" y="81" width="30" height="2" fill="#4b5563" />
+        </svg>
+      </div>
+    </div>
+  );
+};
+
+const RightRailProps: React.FC<{ width: number; height: number }> = ({ width, height }) => {
+  if (width < 24) return null;
+  const scale = Math.min(1.0, (width - 8) / 80);
+  const propW = 80 * scale;
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        paddingTop: '40px',
+        paddingBottom: '40px',
+        boxSizing: 'border-box',
+      }}
+    >
+      <div style={{ width: `${propW}px`, height: `${propW * 1.5}px`, position: 'relative' }}>
+        <svg
+          viewBox="0 0 80 120"
+          style={{ width: '100%', height: '100%' }}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect x="5" y="75" width="70" height="10" rx="1" fill="#7c2f35" stroke="#3e2230" strokeWidth="1.5" />
+          <rect x="6" y="76" width="68" height="2" fill="#d9a864" />
+          <path d="M 15,85 L 15,98 L 22,85 Z" fill="#3e2230" />
+          <path d="M 65,85 L 65,98 L 58,85 Z" fill="#3e2230" />
+          <path d="M 15,75 L 30,75 L 27,55 L 18,55 Z" fill="#c2410c" stroke="#7c2d12" strokeWidth="1" />
+          <rect x="14" y="52" width="18" height="3" fill="#ea580c" rx="0.5" stroke="#7c2d12" strokeWidth="0.5" />
+          <path d="M 23,52 C 20,40 10,48 12,52" fill="none" stroke="#15803d" strokeWidth="3.5" strokeLinecap="round" />
+          <path d="M 23,52 C 23,35 15,30 20,40" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" />
+          <path d="M 23,52 C 25,32 32,38 27,45" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" />
+          <path d="M 23,52 C 30,45 35,55 31,52" fill="none" stroke="#15803d" strokeWidth="3" strokeLinecap="round" />
+          <path d="M 45,75 Q 40,68 45,63 Q 50,68 45,75 Z" fill="#fef3c7" stroke="#b45309" strokeWidth="1" />
+          <path d="M 43,65 L 45,74 M 45,64 L 45,74 M 47,65 L 45,74" stroke="#d97706" strokeWidth="0.5" />
+          <ellipse cx="60" cy="72" rx="6" ry="3" fill="#fbcfe8" stroke="#be185d" strokeWidth="1" />
+          <ellipse cx="58" cy="72" rx="3" ry="1.5" fill="#f472b6" />
+        </svg>
+      </div>
+
+      <div style={{ width: `${propW}px`, height: `${propW * 1.5}px`, position: 'relative' }}>
+        <svg
+          viewBox="0 0 80 120"
+          style={{ width: '100%', height: '100%' }}
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <rect x="25" y="70" width="30" height="6" fill="#7a5240" stroke="#3e2230" strokeWidth="1" />
+          <rect x="28" y="66" width="4" height="4" fill="#b07c4f" />
+          <rect x="48" y="66" width="4" height="4" fill="#b07c4f" />
+          <rect x="14" y="48" width="4" height="6" fill="#b45309" stroke="#78350f" strokeWidth="0.5" />
+          <rect x="18" y="46" width="8" height="10" fill="#e2e8f0" fillOpacity="0.4" stroke="#64748b" strokeWidth="1" />
+          <rect x="26" y="38" width="40" height="26" rx="5" fill="#93c5fd" fillOpacity="0.2" stroke="#64748b" strokeWidth="1.5" />
+          <path d="M 30,41 L 60,41" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.5" />
+          <rect x="28" y="56" width="36" height="6" rx="1" fill="#2563eb" />
+          <path d="M 38,56 L 54,56 L 51,52 L 41,52 Z" fill="#78350f" />
+          <line x1="43" y1="52" x2="43" y2="44" stroke="#78350f" strokeWidth="1" />
+          <path d="M 43,44 L 40,48 L 43,51 Z" fill="#ffffff" stroke="#cbd5e1" strokeWidth="0.5" />
+          <line x1="49" y1="52" x2="49" y2="42" stroke="#78350f" strokeWidth="1" />
+          <path d="M 49,42 L 46,46 L 49,50 Z" fill="#ffffff" stroke="#cbd5e1" strokeWidth="0.5" />
+        </svg>
+      </div>
+    </div>
+  );
+};
 
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 800,
+    height: typeof window !== 'undefined' ? window.innerHeight : 600,
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+
+
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1706,6 +2150,10 @@ export default function App() {
     return () => {
       shutdownInput();
     };
+  }, []);
+
+  useEffect(() => {
+    profileAudit();
   }, []);
   
   // Throttle save
@@ -1758,8 +2206,6 @@ export default function App() {
     currentFrame: 0,
     shop: {
       levels: {},
-      decorOwned: {},
-      decorShown: {},
       open: false,
       selectedCategory: 'pets',
       selectedItemId: null,
@@ -1785,6 +2231,10 @@ export default function App() {
     tutorialStep: 0,
     isTutorial: false,
     particlesEnabled: true,
+    profileModal: (profilesStore.order.length === 0 || !game.profile) ? 'first' : null,
+    profileInputText: '',
+    profileError: null,
+    profileSelectedId: profilesStore.current,
   });
 
   const nextEntityIdRef = useRef<number>(100);
@@ -1806,18 +2256,166 @@ export default function App() {
     return null;
   });
   const [nameInput, setNameInput] = useState('');
+  const [viewportVersion, setViewportVersion] = useState(0);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [profileModal, setProfileModal] = useState<GameState['profileModal']>(() => {
+    return (profilesStore.order.length === 0 || !game.profile) ? 'first' : null;
+  });
+  const profileModalRef = useRef(profileModal);
+  profileModalRef.current = profileModal;
 
-  const handleCreateAccount = () => {
-    const name = nameInput.trim();
-    if (!name) return;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('tankCurrentUser', name);
-      setCurrentUser(name);
-      loadProgress(name);
-      // Force initial game state to sync from newly loaded/created save
-      syncGameFromSaveState(gameStateRef.current);
+  const updateProfileModal = useCallback((modal: GameState['profileModal']) => {
+    gameStateRef.current.profileModal = modal;
+    profileModalRef.current = modal;
+    setProfileModal(modal);
+    if (modal === 'first' || modal === 'new' || modal === 'rename') {
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          setIsInputFocused(true);
+          gameStateRef.current.isInputFocused = true;
+        }
+      }, 0);
+    } else {
+      setIsInputFocused(false);
+      gameStateRef.current.isInputFocused = false;
     }
-  };
+  }, []);
+
+  const handleConfirmProfileName = useCallback(() => {
+    const gs = gameStateRef.current;
+    const rawName = (gs.profileInputText || nameInput || '').trim();
+    const validation = validateName(rawName, gs.profileModal === 'rename' ? gs.profileSelectedId || undefined : undefined);
+    if (validation !== 'ok') {
+      gs.profileError = validation;
+      playRejectedSound();
+      return;
+    }
+
+    if (gs.profileModal === 'rename' && gs.profileSelectedId) {
+      renameProfile(gs.profileSelectedId, rawName);
+      updateProfileModal('selector');
+      playShopSound(0.8);
+    } else {
+      const newProf = createProfile(rawName);
+      if (newProf) {
+        setProfile(newProf.id, gs);
+        setCurrentUser(game.profile?.name || '');
+        updateProfileModal(null);
+        playShopSound(0.8);
+      } else {
+        playRejectedSound();
+      }
+    }
+  }, [nameInput, updateProfileModal]);
+
+  // Focus the input from the opening tap or state change on profile name modals
+  useEffect(() => {
+    const isModalActive = profileModal === 'first' || profileModal === 'new' || profileModal === 'rename';
+    if (isModalActive) {
+      const focusInput = () => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          setIsInputFocused(true);
+          gameStateRef.current.isInputFocused = true;
+        }
+      };
+      focusInput();
+      const t1 = setTimeout(focusInput, 30);
+      const t2 = setTimeout(focusInput, 100);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    } else {
+      setIsInputFocused(false);
+      gameStateRef.current.isInputFocused = false;
+    }
+  }, [profileModal, currentScreen]);
+
+  // Global keyboard listener to ensure typing and Enter/Escape always work when profile modal is open
+  useEffect(() => {
+    const isModalActive = profileModal === 'first' || profileModal === 'new' || profileModal === 'rename';
+    if (!isModalActive) return;
+
+    const handleWindowKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      if (e.key === 'Escape') {
+        if (profileModal !== 'first') {
+          updateProfileModal('selector');
+          playShopSound(0.6);
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleConfirmProfileName();
+        return;
+      }
+
+      // If document.activeElement is not inputRef.current, focus it immediately so keystrokes register
+      if (document.activeElement !== inputRef.current && inputRef.current) {
+        inputRef.current.focus();
+        setIsInputFocused(true);
+        gameStateRef.current.isInputFocused = true;
+
+        if (e.key === 'Backspace') {
+          e.preventDefault();
+          setNameInput((prev) => {
+            const next = prev.slice(0, -1);
+            const gs = gameStateRef.current;
+            gs.profileInputText = next;
+            gs.profileError = validateName(next, gs.profileModal === 'rename' ? gs.profileSelectedId || undefined : undefined);
+            return next;
+          });
+          return;
+        }
+
+        if (e.key.length === 1) {
+          const char = e.key.normalize('NFC').toUpperCase();
+          if (/^[A-Z0-9 ÁÉÍÓÚÑÀÈÌÒÙÂÊÎÔÛÄËÏÖÜ\-\'\.]$/.test(char)) {
+            e.preventDefault();
+            setNameInput((prev) => {
+              if (prev.length >= 12) return prev;
+              const next = (prev + char).slice(0, 12);
+              const gs = gameStateRef.current;
+              gs.profileInputText = next;
+              gs.profileError = validateName(next, gs.profileModal === 'rename' ? gs.profileSelectedId || undefined : undefined);
+              return next;
+            });
+            return;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleWindowKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleWindowKeyDown);
+    };
+  }, [profileModal, handleConfirmProfileName, updateProfileModal]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const handleViewportChange = () => {
+      setViewportVersion(v => v + 1);
+    };
+
+    window.visualViewport.addEventListener('resize', handleViewportChange);
+    window.visualViewport.addEventListener('scroll', handleViewportChange);
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleViewportChange);
+      window.visualViewport?.removeEventListener('scroll', handleViewportChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    gameStateRef.current.isInputFocused = isInputFocused;
+  }, [isInputFocused]);
 
   useEffect(() => {
     (window as any).__forceShopRedraw = () => {
@@ -1974,6 +2572,14 @@ export default function App() {
       setupFinish: (gs: GameState) => {
         setMoneyAtLeast(gs, 350);
       },
+      setupSbWelcome: (gs: GameState) => {
+        gs.mods = gs.mods || { open: false, animTimer: 0, selectedTab: 'rules', scrollOffset: 0 };
+      },
+      setupSbMods: (gs: GameState) => {
+        gs.mods = gs.mods || { open: false, animTimer: 0, selectedTab: 'rules', scrollOffset: 0 };
+        gs.mods.open = true;
+      },
+      setupSbFinish: (_gs: GameState) => {},
     } as Record<string, (gs: GameState) => void>,
     gate: {
       gateNext: (_gs: GameState) => false,
@@ -1984,14 +2590,29 @@ export default function App() {
       gateFoodLimit: (gs: GameState) => (gs.shop?.levels?.['foodLimit'] || 0) >= 1 || (gs.stats?.foodLimit || 0) > 1 || (gs.foodLimit || 0) > 1,
       gateCloseShop: (gs: GameState) => !gs.shop?.open && gs.food.filter(f => !f.dead).length >= 2,
       gateAlien: (gs: GameState) => gs.aliens.filter(a => a.tut && !a.dead).length === 0 && !!gs.tutorialDiamondCollected && (gs.tutorialDialogue?.pageIndex || 0) >= 2,
+      gateGearOpen: (gs: GameState) => !!gs.mods?.open,
       gateFinish: (_gs: GameState) => false,
     } as Record<string, (gs: GameState) => boolean>,
   };
 
   const advanceTutorial = (gs: GameState) => {
     gs.tutorialStep++;
-    const step = CONFIG.TUTORIAL[gs.tutorialStep - 1];
+    const stepList = gs.tutorialType === 'sandbox' ? CONFIG.SANDBOX_TUTORIAL : CONFIG.TUTORIAL;
+    const step = stepList[gs.tutorialStep - 1];
     if (!step) {
+      if (gs.tutorialType === 'sandbox') {
+        saveState.sandboxTutorial = true;
+        sessionSandboxTutorialCompleted = true;
+        saveProgress();
+        gs.isTutorial = false;
+        gs.tutorialStep = 0;
+        gs.tutorialType = undefined;
+        game.mode = 'sandbox';
+        gs.gameMode = 'sandbox';
+        gs.state = 'PLAYING';
+        return;
+      }
+
       // Tutorial step 10 finished!
       saveState.tutorial = true;
       sessionTutorialCompleted = true;
@@ -2004,6 +2625,7 @@ export default function App() {
 
       gs.isTutorial = false;
       gs.tutorialStep = 0;
+      gs.tutorialType = undefined;
 
       // Re-initialize for chosen mode through normal fresh-start reset with nothing carried over
       if (tutorialPostMode === 'sandbox') {
@@ -2037,7 +2659,8 @@ export default function App() {
   const updateTutorial = (gs: GameState, dt: number) => {
     if (!gs.isTutorial || gs.tutorialStep === 0) return;
 
-    const step = CONFIG.TUTORIAL[gs.tutorialStep - 1];
+    const stepList = gs.tutorialType === 'sandbox' ? CONFIG.SANDBOX_TUTORIAL : CONFIG.TUTORIAL;
+    const step = stepList[gs.tutorialStep - 1];
     if (!step) return;
 
     // Money protection hooks
@@ -2106,17 +2729,64 @@ export default function App() {
     }
   };
 
-  const startTutorial = useCallback((postMode: 'levels' | 'sandbox') => {
+  const startTutorial = useCallback((postMode: 'levels' | 'sandbox', tutType: 'levels' | 'sandbox' = 'levels') => {
     const gs = gameStateRef.current;
     setTutorialPostMode(postMode);
     game.mode = 'tutorial';
     gs.isTutorial = true;
+    gs.tutorialType = tutType;
     gs.tutorialStep = 0; // Will be incremented to 1 in loop or setup
     gs.state = 'PLAYING';
     gs.gameMode = 'tutorial';
     gs.transitionTimer = 0.4;
 
-    // Initial setup for tutorial
+    if (tutType === 'sandbox') {
+      gs.money = 500;
+      gs.tod = 'day';
+      gs.fish.length = 0;
+      const f1 = createFish(nextEntityIdRef.current++, 260, 220, 1);
+      f1.size = 0;
+      f1.tut = false;
+      const f2 = createFish(nextEntityIdRef.current++, 540, 360, -1);
+      f2.size = 0;
+      f2.tut = false;
+      gs.fish.push(f1, f2);
+
+      gs.food.length = 0;
+      gs.coins.length = 0;
+      gs.aliens.length = 0;
+      gs.snails.length = 0;
+      gs.pets = [];
+      gs.beams.length = 0;
+      gs.particles.length = 0;
+
+      gs.stats.foodLimit = CONFIG.foodLimit;
+      gs.stats.pelletValue = 1;
+      gs.stats.weaponLevel = 0;
+      gs.stats.eggPieces = 0;
+      gs.foodLimit = CONFIG.foodLimit;
+      if (gs.shop) {
+        gs.shop.open = false;
+        gs.shop.selectedCategory = 'pets';
+        gs.shop.selectedItemId = null;
+        gs.shop.scrollOffset = 0;
+      }
+      gs.mods = { open: false, animTimer: 0, selectedTab: 'rules', scrollOffset: 0 };
+      gs.tutorialDialogue = {
+        pageIndex: 0,
+        charTimer: 0,
+        fullyRevealed: false,
+      };
+      gs.tutorialWrongTaps = [];
+      gs.tutorialWrongTapAlert = 0;
+
+      advanceTutorial(gs);
+      setCurrentScreen('PLAYING');
+      invalidateCachedBackdrop();
+      return;
+    }
+
+    // Initial setup for levels tutorial
     gs.money = 350;
     gs.tod = 'day';
     gs.fish.length = 0;
@@ -2429,7 +3099,8 @@ export default function App() {
 
     // Tutorial Hit Testing & Restrictions
     if (gs.isTutorial && gs.state === 'PLAYING') {
-      const step = CONFIG.TUTORIAL[gs.tutorialStep - 1];
+      const stepList = gs.tutorialType === 'sandbox' ? CONFIG.SANDBOX_TUTORIAL : CONFIG.TUTORIAL;
+      const step = stepList[gs.tutorialStep - 1];
       if (!step) return;
 
       // 1. Check Dialogue Box Hit
@@ -2488,8 +3159,18 @@ export default function App() {
         } else if (logicalX >= 500) {
           targetId = 'ui:drawer';
         }
+      } else if (gs.mods?.open) {
+        if (logicalX >= 756 && logicalX <= 800 && logicalY >= 56 && logicalY <= 100) {
+          targetId = 'ui:close';
+        } else if (logicalY >= 100 && logicalY <= 138) {
+          if (logicalX >= 508 && logicalX <= 604) targetId = 'ui:tab:rules';
+          else if (logicalX >= 608 && logicalX <= 700) targetId = 'ui:tab:cheats';
+          else if (logicalX >= 704 && logicalX <= 796) targetId = 'ui:tab:spawn';
+        } else if (logicalX >= 500) {
+          targetId = 'ui:mods';
+        }
       } else {
-        // Shop closed: Check HUD elements (y: 0 - 64)
+        // Shop & mods closed: Check HUD elements (y: 0 - 64)
         if (logicalY <= CONFIG.hudHeight + 4) {
           if (logicalX >= 90 && logicalX <= 194) {
             targetId = 'ui:shop';
@@ -2497,7 +3178,9 @@ export default function App() {
             targetId = 'ui:egg';
           } else if (logicalX >= 550 && logicalX <= 660) {
             targetId = 'ui:levelBadge';
-          } else if (logicalX >= 720 && logicalX <= 800) {
+          } else if (logicalX >= 680 && logicalX <= 738) {
+            targetId = 'ui:gear';
+          } else if (logicalX >= 740 && logicalX <= 800) {
             targetId = 'ui:pause';
           }
         }
@@ -2534,8 +3217,169 @@ export default function App() {
       }
     }
 
-    // Screen interactions (Title, Settings, Paused, Level Complete, Game Over)
     if (gs.state === 'TITLE') {
+      // 0. PROFILE MODALS INTERACTION
+      const artX = logicalX / 2;
+      const artY = logicalY / 2;
+
+      if (gs.profileModal) {
+        if (gs.profileModal === 'selector') {
+          // Back button
+          const cRect = gs._selectorCloseRect;
+          if (cRect && artX >= cRect.x && artX < cRect.x + cRect.w && artY >= cRect.y && artY < cRect.y + cRect.h) {
+            updateProfileModal(null);
+            playShopSound(0.6);
+            return;
+          }
+          // Profile rows (dynamic check)
+          const lRect = gs._selectorListRect;
+          if (lRect && artX >= lRect.x && artX < lRect.x + lRect.w && artY >= lRect.y && artY < lRect.y + lRect.h) {
+            const scrollOff = gs.profileScrollOffset || 0;
+            const relY = artY - lRect.y + scrollOff;
+            const rowIndex = Math.floor(relY / 15); // listRowH = 15
+            if (rowIndex >= 0 && rowIndex < profilesStore.order.length) {
+              gs.profileSelectedId = profilesStore.order[rowIndex];
+              playShopSound(0.6);
+            }
+            return;
+          }
+          // NEW
+          const nRect = gs._selectorNewRect;
+          if (nRect && artX >= nRect.x && artX < nRect.x + nRect.w && artY >= nRect.y && artY < nRect.y + nRect.h) {
+            if (profilesStore.order.length < 8) {
+              gs.profileInputText = '';
+              gs.profileError = null;
+              setNameInput('');
+              updateProfileModal('new');
+              playShopSound(0.6);
+            } else {
+              playRejectedSound();
+            }
+            return;
+          }
+          // RENAME
+          const rRect = gs._selectorRenameRect;
+          if (rRect && artX >= rRect.x && artX < rRect.x + rRect.w && artY >= rRect.y && artY < rRect.y + rRect.h) {
+            if (gs.profileSelectedId && profilesStore.users[gs.profileSelectedId]) {
+              gs.profileInputText = profilesStore.users[gs.profileSelectedId].name;
+              gs.profileError = null;
+              setNameInput(gs.profileInputText);
+              updateProfileModal('rename');
+              playShopSound(0.6);
+            } else {
+              playRejectedSound();
+            }
+            return;
+          }
+          // DELETE
+          const dRect = gs._selectorDeleteRect;
+          if (dRect && artX >= dRect.x && artX < dRect.x + dRect.w && artY >= dRect.y && artY < dRect.y + dRect.h) {
+            if (gs.profileSelectedId && profilesStore.users[gs.profileSelectedId]) {
+              updateProfileModal('delete');
+              playShopSound(0.6);
+            } else {
+              playRejectedSound();
+            }
+            return;
+          }
+          // OK
+          const oRect = gs._selectorOkRect;
+          if (oRect && artX >= oRect.x && artX < oRect.x + oRect.w && artY >= oRect.y && artY < oRect.y + oRect.h) {
+            if (gs.profileSelectedId && profilesStore.users[gs.profileSelectedId]) {
+              setProfile(gs.profileSelectedId, gs);
+              setCurrentUser(game.profile?.name || '');
+              updateProfileModal(null);
+              playShopSound(0.8);
+            } else {
+              playRejectedSound();
+            }
+            return;
+          }
+          return;
+        }
+
+        if (gs.profileModal === 'first' || gs.profileModal === 'new' || gs.profileModal === 'rename') {
+          // CANCEL button
+          const ncRect = gs._nameDialogCancelRect;
+          if (ncRect && artX >= ncRect.x && artX < ncRect.x + ncRect.w && artY >= ncRect.y && artY < ncRect.y + ncRect.h) {
+            updateProfileModal(profilesStore.order.length > 0 ? 'selector' : 'first');
+            playShopSound(0.6);
+            return;
+          }
+          // OK button
+          const noRect = gs._nameDialogOkRect;
+          if (noRect && artX >= noRect.x && artX < noRect.x + noRect.w && artY >= noRect.y && artY < noRect.y + noRect.h) {
+            handleConfirmProfileName();
+            return;
+          }
+          // Keep / restore focus to transparent input on any dialog interaction
+          if (inputRef.current) {
+            inputRef.current.focus();
+            setIsInputFocused(true);
+            gameStateRef.current.isInputFocused = true;
+          }
+          return;
+        }
+
+        if (gs.profileModal === 'delete') {
+          // CANCEL
+          const dcRect = gs._deleteConfirmCancelRect;
+          if (dcRect && artX >= dcRect.x && artX < dcRect.x + dcRect.w && artY >= dcRect.y && artY < dcRect.y + dcRect.h) {
+            updateProfileModal('selector');
+            playShopSound(0.6);
+            return;
+          }
+          // DELETE
+          const ddRect = gs._deleteConfirmDeleteRect;
+          if (ddRect && artX >= ddRect.x && artX < ddRect.x + ddRect.w && artY >= ddRect.y && artY < ddRect.y + ddRect.h) {
+            if (gs.profileSelectedId) {
+              deleteProfile(gs.profileSelectedId);
+            }
+            if (profilesStore.order.length === 0) {
+              gs.profileInputText = '';
+              gs.profileError = null;
+              setNameInput('');
+              updateProfileModal('first');
+            } else {
+              gs.profileSelectedId = profilesStore.current;
+              updateProfileModal('selector');
+            }
+            playShopSound(0.8);
+            return;
+          }
+          return;
+        }
+        return;
+      }
+
+      // Hanging Wooden Sign Tap Target (dynamic bounds)
+      const sRect = gs._signRect;
+      if (sRect && artX >= sRect.x && artX < sRect.x + sRect.w && artY >= sRect.y && artY < sRect.y + sRect.h) {
+        if (profilesStore.order.length === 0 || !game.profile) {
+          gs.profileInputText = '';
+          gs.profileError = null;
+          setNameInput('');
+          updateProfileModal('first');
+        } else {
+          gs.profileSelectedId = profilesStore.current;
+          gs.profileScrollOffset = 0;
+          updateProfileModal('selector');
+        }
+        playShopSound(0.6);
+        return;
+      }
+
+      // First launch requirement check
+      if (profilesStore.order.length === 0 || !game.profile) {
+        gs.profileInputText = '';
+        gs.profileError = null;
+        setNameInput('');
+        updateProfileModal('first');
+        playRejectedSound();
+        return;
+      }
+
+      // 1. Levels Mode: (logical 230..570, 210..280)
       if (logicalX >= 230 && logicalX <= 570 && logicalY >= 210 && logicalY <= 280) {
         if (isTutorialNeeded()) {
           startTutorial('levels');
@@ -2549,18 +3393,40 @@ export default function App() {
       }
       // 2. Sandbox Mode: (logical 230..570, 286..358)
       if (logicalX >= 230 && logicalX <= 570 && logicalY >= 286 && logicalY <= 358) {
-        if (isTutorialNeeded()) {
-          startTutorial('sandbox');
+        const sandboxUnlocked = saveState.completed['1'] !== undefined || (gs.completedLevels && gs.completedLevels['1'] !== undefined);
+        if (!sandboxUnlocked) {
+          playRejectedSound();
+          gs.sandboxShakeTimer = 0.2;
+          return;
+        }
+        if (isSandboxTutorialNeeded()) {
+          startTutorial('sandbox', 'sandbox');
         } else {
+          gs.sandboxSavedTheme = {
+            active: saveState.themes.active,
+          };
           startGame('sandbox');
         }
         return;
       }
-      // 3. Settings Menu: (logical 230..570, 364..436)
-      if (logicalX >= 230 && logicalX <= 570 && logicalY >= 364 && logicalY <= 436) {
+      // 3. Settings Menu: (logical 230..570, 364..432)
+      if (logicalX >= 230 && logicalX <= 570 && logicalY >= 364 && logicalY <= 432) {
         gs.state = 'SETTINGS';
         gs.transitionTimer = 0.4;
         setCurrentScreen('SETTINGS');
+        return;
+      }
+      // 4. Language Switcher Button on Title: (logical 230..570, 436..492)
+      if (logicalX >= 230 && logicalX <= 570 && logicalY >= 436 && logicalY <= 492) {
+        const langs: ('en' | 'es' | 'fr' | 'de' | 'pt' | 'it')[] = ['en', 'es', 'fr', 'de', 'pt', 'it'];
+        const curLang = getLanguage();
+        const curIdx = langs.indexOf(curLang);
+        const nextLang = langs[(curIdx + 1) % langs.length];
+        setLanguage(nextLang);
+        try {
+          localStorage.setItem('tankLanguage', nextLang);
+        } catch (e) {}
+        playShopSound(0.6);
         return;
       }
       return;
@@ -2653,9 +3519,6 @@ export default function App() {
       }
 
       // 3. Node Selection
-      // UI px: nx = startX + col * (nodeW + gap) = 102 + col * 40
-      // UI px: ny = py + 42 + row * (nodeW + gap) = 30 + 42 + row * 40 = 72 + row * 40
-      // logical 2x: lx = 204 + col * 80, ly = 144 + row * 80, lw = 72, lh = 72
       for (let l = 1; l <= 10; l++) {
         const row = l <= 5 ? 0 : 1;
         const col = (l - 1) % 5;
@@ -2675,41 +3538,84 @@ export default function App() {
     }
 
     if (gs.state === 'SETTINGS') {
-      // Column 1
-      // Toggle Screen Shake (160, 176, 220, 44)
-      if (logicalX >= 160 && logicalX <= 380 && logicalY >= 176 && logicalY <= 220) {
+      // Column 1: SHAKE (logical 160..380, 168..208)
+      if (logicalX >= 160 && logicalX <= 380 && logicalY >= 168 && logicalY <= 208) {
         gs.screenShakeEnabled = !(gs.screenShakeEnabled !== false);
+        playShopSound(0.6);
         return;
       }
-      // Toggle Fullscreen (160, 228, 220, 44)
-      if (logicalX >= 160 && logicalX <= 380 && logicalY >= 228 && logicalY <= 272) {
+      // Column 1: WATER FX (logical 160..380, 216..256)
+      if (logicalX >= 160 && logicalX <= 380 && logicalY >= 216 && logicalY <= 256) {
+        gs.waterFxHigh = !(gs.waterFxHigh !== false);
+        playShopSound(0.6);
+        return;
+      }
+      // Column 1: FULLSCREEN (logical 160..380, 264..304)
+      if (logicalX >= 160 && logicalX <= 380 && logicalY >= 264 && logicalY <= 304) {
         toggleFullscreen();
+        playShopSound(0.6);
         return;
       }
-
-      // Column 2
-      // Toggle Particles (420, 176, 220, 44)
-      if (logicalX >= 420 && logicalX <= 640 && logicalY >= 176 && logicalY <= 220) {
+      // Column 2: PARTICLES (logical 420..640, 168..208)
+      if (logicalX >= 420 && logicalX <= 640 && logicalY >= 168 && logicalY <= 208) {
         gs.particlesEnabled = !(gs.particlesEnabled !== false);
+        playShopSound(0.6);
         return;
       }
-      // Reset Data (420, 228, 220, 44)
-      if (logicalX >= 420 && logicalX <= 640 && logicalY >= 228 && logicalY <= 272) {
-        if (confirm("RESET ALL PROGRESS? THIS CANNOT BE UNDONE.")) {
-          resetProgress();
-          gs.state = 'TITLE';
-          gs.transitionTimer = 0.4;
-          window.location.reload(); // Reload to ensure everything is reset
+      // Column 2: FPS CAP (logical 420..640, 216..256)
+      if (logicalX >= 420 && logicalX <= 640 && logicalY >= 216 && logicalY <= 256) {
+        gs.fpsCap30 = !gs.fpsCap30;
+        playShopSound(0.6);
+        return;
+      }
+      // Column 2: LOW POWER MODE (logical 420..640, 264..304)
+      if (logicalX >= 420 && logicalX <= 640 && logicalY >= 264 && logicalY <= 304) {
+        gs.lowPowerMode = !gs.lowPowerMode;
+        if (gs.lowPowerMode) {
+          gs.particlesEnabled = false;
+          gs.waterFxHigh = false;
+          gs.fpsCap30 = true;
         }
+        playShopSound(0.6);
         return;
       }
-
-      // Back to Title (250, 310, 300, 48)
-      if (logicalX >= 250 && logicalX <= 550 && logicalY >= 310 && logicalY <= 358) {
+      // Bottom Row: RESET DATA (logical 160..380, 316..360)
+      if (logicalX >= 160 && logicalX <= 380 && logicalY >= 316 && logicalY <= 360) {
+        gs.state = 'CONFIRM_RESET';
+        playShopSound(0.6);
+        return;
+      }
+      // Bottom Row: BACK TO TITLE (logical 420..640, 316..360)
+      if (logicalX >= 420 && logicalX <= 640 && logicalY >= 316 && logicalY <= 360) {
         gs.state = 'TITLE';
         game.mode = 'levels';
         gs.transitionTimer = 0.4;
         setCurrentScreen('TITLE');
+        playShopSound(0.6);
+        return;
+      }
+      return;
+    }
+
+    if (gs.state === 'CONFIRM_RESET') {
+      // CANCEL button: (logical 160..380, 304..352)
+      if (logicalX >= 160 && logicalX <= 380 && logicalY >= 304 && logicalY <= 352) {
+        gs.state = 'SETTINGS';
+        playShopSound(0.6);
+        return;
+      }
+      // CONFIRM RESET / ERASE ALL DATA button: (logical 420..640, 304..352)
+      if (logicalX >= 420 && logicalX <= 640 && logicalY >= 304 && logicalY <= 352) {
+        resetProgress();
+        gs.completedLevels = {};
+        if (gs.shop) {
+          gs.shop.levels = {};
+        }
+        gs.state = 'TITLE';
+        game.mode = 'levels';
+        gs.transitionTimer = 0.4;
+        setCurrentScreen('TITLE');
+        playShopSound(0.8);
         return;
       }
       return;
@@ -2717,55 +3623,74 @@ export default function App() {
 
     if (gs.state === 'PAUSED') {
       if (game.mode === 'sandbox') {
-        // 1. Resume (logical 250..550, 160..210)
-        if (logicalX >= 250 && logicalX <= 550 && logicalY >= 160 && logicalY <= 210) {
+        // 1. Resume (art 130,95,140,22 -> logical 260..540, 190..234)
+        if (logicalX >= 250 && logicalX <= 550 && logicalY >= 180 && logicalY <= 244) {
           resumeGame();
           return;
         }
-        // 2. Sandbox Options (logical 250..550, 214..264)
-        if (logicalX >= 250 && logicalX <= 550 && logicalY >= 214 && logicalY <= 264) {
-          gs.state = 'SANDBOX_OPTIONS';
-          return;
-        }
-        // 3. Reset Tank (logical 250..550, 268..318)
-        if (logicalX >= 250 && logicalX <= 550 && logicalY >= 268 && logicalY <= 318) {
+        // 2. Reset Tank (art 130,128,140,22 -> logical 260..540, 256..300)
+        if (logicalX >= 250 && logicalX <= 550 && logicalY >= 246 && logicalY <= 310) {
           resetTank();
           return;
         }
-        // 4. Main Menu (logical 250..550, 322..380)
-        if (logicalX >= 250 && logicalX <= 550 && logicalY >= 322 && logicalY <= 380) {
+        // 3. Main Menu (art 130,161,140,22 -> logical 260..540, 322..366)
+        if (logicalX >= 250 && logicalX <= 550 && logicalY >= 312 && logicalY <= 376) {
           if (gs.isTutorial) {
             gs.isTutorial = false;
             gs.tutorialStep = 0;
           }
+          if (gs.sandboxSavedTheme) {
+            saveState.themes.active = gs.sandboxSavedTheme.active;
+          }
+          invalidateCachedBackdrop();
           gs.state = 'TITLE';
           game.mode = 'levels';
-          game.sandbox = { freeShop: true, aliens: false, hunger: true };
+          game.sandbox = {
+            freeShop: true,
+            freeFood: false,
+            aliens: false,
+            hunger: true,
+            godMode: false,
+            autoCollect: false,
+            limitBreaker: false,
+            speed: 1,
+            spawnSize: 0,
+          };
           gs.transitionTimer = 0.4;
           setCurrentScreen('TITLE');
           setMuffled(false);
           return;
         }
       } else {
-        // 1. Resume button (logical 260..540, 180..244)
-        if (logicalX >= 260 && logicalX <= 540 && logicalY >= 180 && logicalY <= 244) {
+        // 1. Resume button (art 140,95,120,24 -> logical 280..520, 190..238)
+        if (logicalX >= 250 && logicalX <= 550 && logicalY >= 180 && logicalY <= 244) {
           resumeGame();
           return;
         }
-        // 2. Restart button (logical 260..540, 246..310)
-        if (logicalX >= 260 && logicalX <= 540 && logicalY >= 246 && logicalY <= 310) {
+        // 2. Restart button (art 140,128,120,24 -> logical 280..520, 256..304)
+        if (logicalX >= 250 && logicalX <= 550 && logicalY >= 246 && logicalY <= 310) {
           retryGame();
           return;
         }
-        // 3. Main Menu button (logical 260..540, 312..380)
-        if (logicalX >= 260 && logicalX <= 540 && logicalY >= 312 && logicalY <= 380) {
+        // 3. Main Menu button (art 140,161,120,24 -> logical 280..520, 322..370)
+        if (logicalX >= 250 && logicalX <= 550 && logicalY >= 312 && logicalY <= 376) {
           if (gs.isTutorial) {
             gs.isTutorial = false;
             gs.tutorialStep = 0;
           }
           gs.state = 'TITLE';
           game.mode = 'levels';
-          game.sandbox = { freeShop: true, aliens: false, hunger: true };
+          game.sandbox = {
+            freeShop: true,
+            freeFood: false,
+            aliens: false,
+            hunger: true,
+            godMode: false,
+            autoCollect: false,
+            limitBreaker: false,
+            speed: 1,
+            spawnSize: 0,
+          };
           gs.transitionTimer = 0.4;
           setCurrentScreen('TITLE');
           setMuffled(false);
@@ -2871,23 +3796,13 @@ export default function App() {
         if (gs.shop.selectedItemId) {
           const selItem = CONFIG.SHOP_ITEMS.find((it) => it.id === gs.shop.selectedItemId);
           if (selItem) {
-            if (selItem.category === 'decor') {
-              if (!gs.shop.decorOwned[selItem.id]) {
-                const res = purchase(gs, selItem.id, gs.currentFrame, nextEntityIdRef);
-                if (res.ok) {
-                  gs.shop.decorOwned[selItem.id] = true;
-                  gs.shop.decorShown[selItem.id] = true;
-                  if (selItem.id === 'decorLagoon') gs.shop.decorShown['decorMidnight'] = false;
-                  if (selItem.id === 'decorMidnight') gs.shop.decorShown['decorLagoon'] = false;
-                  syncSaveStateFromGame(gs);
-                }
+            if (selItem.category === 'themes') {
+              if (!saveState.themes.owned.includes(selItem.id)) {
+                purchase(gs, selItem.id, gs.currentFrame, nextEntityIdRef);
               } else {
-                gs.shop.decorShown[selItem.id] = !gs.shop.decorShown[selItem.id];
-                if (gs.shop.decorShown[selItem.id]) {
-                  if (selItem.id === 'decorLagoon') gs.shop.decorShown['decorMidnight'] = false;
-                  if (selItem.id === 'decorMidnight') gs.shop.decorShown['decorLagoon'] = false;
-                }
-                syncSaveStateFromGame(gs);
+                saveState.themes.active = selItem.id;
+                saveProfiles();
+                invalidateCachedBackdrop();
               }
             } else {
               purchase(gs, selItem.id, gs.currentFrame, nextEntityIdRef);
@@ -2903,23 +3818,13 @@ export default function App() {
         if (selItem) {
           if (gs.shop.selectedItemId === itemId) {
             // Already selected: purchase / toggle directly!
-            if (selItem.category === 'decor') {
-              if (!gs.shop.decorOwned[selItem.id]) {
-                const res = purchase(gs, selItem.id, gs.currentFrame, nextEntityIdRef);
-                if (res.ok) {
-                  gs.shop.decorOwned[selItem.id] = true;
-                  gs.shop.decorShown[selItem.id] = true;
-                  if (selItem.id === 'decorLagoon') gs.shop.decorShown['decorMidnight'] = false;
-                  if (selItem.id === 'decorMidnight') gs.shop.decorShown['decorLagoon'] = false;
-                  syncSaveStateFromGame(gs);
-                }
+            if (selItem.category === 'themes') {
+              if (!saveState.themes.owned.includes(selItem.id)) {
+                purchase(gs, selItem.id, gs.currentFrame, nextEntityIdRef);
               } else {
-                gs.shop.decorShown[selItem.id] = !gs.shop.decorShown[selItem.id];
-                if (gs.shop.decorShown[selItem.id]) {
-                  if (selItem.id === 'decorLagoon') gs.shop.decorShown['decorMidnight'] = false;
-                  if (selItem.id === 'decorMidnight') gs.shop.decorShown['decorLagoon'] = false;
-                }
-                syncSaveStateFromGame(gs);
+                saveState.themes.active = selItem.id;
+                saveProfiles();
+                invalidateCachedBackdrop();
               }
             } else {
               purchase(gs, selItem.id, gs.currentFrame, nextEntityIdRef);
@@ -2939,12 +3844,179 @@ export default function App() {
     }
 
     // ------------------------------------------------------------------------
+    // MODS DRAWER INTERACTIONS
+    // ------------------------------------------------------------------------
+    if (!gs.mods) {
+      gs.mods = { open: false, animTimer: 0, selectedTab: 'rules', scrollOffset: 0 };
+    }
+    if (gs.mods.open || gs.mods.animTimer > 0) {
+      const progress = gs.mods.animTimer || 0;
+      const easeOut = 1 - Math.pow(1 - progress, 2);
+      const mX = 500 + (1 - easeOut) * 300;
+
+      if (logicalX < mX) {
+        gs.mods.open = false;
+        playShopSound(0.6);
+        return;
+      }
+
+      // Close [X] button top right (logical 756..800, 56..100)
+      if (logicalX >= 756 && logicalX <= 800 && logicalY >= 56 && logicalY <= 100) {
+        gs.mods.open = false;
+        playShopSound(0.6);
+        return;
+      }
+
+      // Tabs: RULES (logical 508..604, 100..138), CHEATS (608..700, 100..138), SPAWN (704..796, 100..138)
+      if (logicalY >= 100 && logicalY <= 138) {
+        if (logicalX >= 508 && logicalX <= 604) gs.mods.selectedTab = 'rules';
+        else if (logicalX >= 608 && logicalX <= 700) gs.mods.selectedTab = 'cheats';
+        else if (logicalX >= 704 && logicalX <= 796) gs.mods.selectedTab = 'spawn';
+        playShopSound(0.6);
+        return;
+      }
+
+      // Rows
+      const selTab = gs.mods.selectedTab || 'rules';
+      const relY = logicalY - 146 + (gs.mods.scrollOffset || 0) * 2;
+      const rowIndex = Math.floor(relY / 30); // 30 logical px per row
+
+      game.sandbox = game.sandbox || {
+        freeShop: true,
+        freeFood: false,
+        aliens: false,
+        hunger: true,
+        godMode: false,
+        autoCollect: false,
+        limitBreaker: false,
+        speed: 1,
+        spawnSize: 0,
+      };
+      const sb = game.sandbox;
+
+      if (relY >= 0 && rowIndex >= 0) {
+        playShopSound(0.6);
+
+        if (selTab === 'rules') {
+          if (!cheatsAllowed(gs)) return;
+          if (rowIndex === 0) sb.freeShop = !sb.freeShop;
+          else if (rowIndex === 1) sb.freeFood = !sb.freeFood;
+          else if (rowIndex === 2) sb.hunger = !sb.hunger;
+          else if (rowIndex === 3) {
+            sb.aliens = !sb.aliens;
+            if (sb.aliens) gs.alienSpawnTimer = Math.random() * (CONFIG.alienFirstSpawnMax - CONFIG.alienFirstSpawnMin) + CONFIG.alienFirstSpawnMin;
+          } else if (rowIndex === 4) sb.godMode = !sb.godMode;
+          else if (rowIndex === 5) sb.autoCollect = !sb.autoCollect;
+          else if (rowIndex === 6) sb.limitBreaker = !sb.limitBreaker;
+          else if (rowIndex === 7) {
+            if (logicalX >= 590 && logicalX <= 634) sb.speed = 0.5;
+            else if (logicalX >= 635 && logicalX <= 678) sb.speed = 1;
+            else if (logicalX >= 679 && logicalX <= 722) sb.speed = 2;
+            else if (logicalX >= 723 && logicalX <= 775) sb.speed = 3;
+          }
+          return;
+        } else if (selTab === 'cheats') {
+          if (!cheatsAllowed(gs)) return;
+          if (rowIndex === 0) { addCheatMoney(gs, 100); playCoinCollectSound('silver'); }
+          else if (rowIndex === 1) { addCheatMoney(gs, 1000); playCoinCollectSound('gold'); }
+          else if (rowIndex === 2) { addCheatMoney(gs, 10000); playCoinCollectSound('diamond'); }
+          else if (rowIndex === 3) { gs.fish.forEach(f => f.timeSinceAte = 0); playFishEatSound(); }
+          else if (rowIndex === 4) {
+            gs.fish.forEach(f => {
+              if (!f.isCarnivore && f.size < 2) {
+                f.size++;
+                f.growthPoints = f.size === 1 ? CONFIG.fishGrowthPointsSize1 : CONFIG.fishGrowthPointsSize2;
+                f.scalePopTimer = CONFIG.fishGrowthPopDuration;
+              }
+            });
+            playFishGrowSound();
+          }
+          else if (rowIndex === 5) { collectAllCoins(gs); playCoinCollectSound('diamond'); }
+          else if (rowIndex === 6) { maxUpgrades(gs); playShopSound(1.0); }
+          return;
+        } else if (selTab === 'spawn') {
+          if (!cheatsAllowed(gs)) return;
+          if (rowIndex === 0) {
+            if (logicalX >= 590 && logicalX <= 650) sb.spawnSize = 0;
+            else if (logicalX >= 651 && logicalX <= 706) sb.spawnSize = 1;
+            else if (logicalX >= 707 && logicalX <= 770) sb.spawnSize = 2;
+            return;
+          }
+          const spawnIdx = rowIndex - 1;
+          const spawnList = getSandboxSpawnList(gs);
+          const item = spawnList[spawnIdx];
+          if (!item) return;
+
+          const caps = getCaps(gs);
+          if (item.id === 'spawnFish') {
+            const livingFish = gs.fish.filter(f => !f.isCarnivore && !f.dead).length;
+            if (livingFish < caps.fish) {
+              const sz = (sb.spawnSize || 0) as 0 | 1 | 2;
+              const f = createFish(nextEntityIdRef.current++, Math.random() * (CONFIG.canvasWidth - 100) + 50, 200, 1);
+              f.size = sz;
+              f.growthPoints = sz === 0 ? 0 : (sz === 1 ? CONFIG.fishGrowthPointsSize1 : CONFIG.fishGrowthPointsSize2);
+              f.coinTimer = 0;
+              gs.fish.push(f);
+              playFoodDropSound();
+            } else {
+              playRejectedSound();
+            }
+          } else if (item.id === 'carnivore') {
+            const carns = gs.fish.filter(f => f.isCarnivore && !f.dead).length;
+            if (carns < caps.carnivore) {
+              gs.fish.push(createCarnivore(nextEntityIdRef.current++, Math.random() * (CONFIG.canvasWidth - 120) + 60, 300, 1));
+              playCarnivoreSpawnSound();
+            } else {
+              playRejectedSound();
+            }
+          } else if (item.id === 'snail') {
+            const snails = gs.snails.filter(s => !s.dead).length;
+            if (snails < caps.snail) {
+              gs.snails.push({ id: nextEntityIdRef.current++, x: Math.random() * (CONFIG.canvasWidth - 100) + 50, y: CONFIG.snailY, vx: 14, facing: 1, idleTimer: 0, crawlTimer: 0, dead: false });
+              playShopSound(0.8);
+            } else {
+              playRejectedSound();
+            }
+          } else if (item.id === 'spawnGargo') {
+            spawnGargo(gs);
+            playAlienSpawnSound();
+          } else if (item.id === 'killAliens') {
+            gs.aliens.forEach(a => a.dead = true);
+            playAlienDieSound();
+          } else if (item.id.startsWith('pet_') && item.speciesId) {
+            const petCount = gs.pets.filter(p => p.speciesId === item.speciesId && !p.dead).length;
+            if (petCount < caps.pet) {
+              gs.pets.push(createRewardPet(nextEntityIdRef.current++, item.speciesId, item.level || 1));
+              playHatchSound();
+            } else {
+              playRejectedSound();
+            }
+          }
+          return;
+        }
+      }
+      return;
+    }
+
+    // ------------------------------------------------------------------------
     // 0. HUD BUTTON TOUCHES (Top bar: y: 0 - 64, generous mobile targets)
     // ------------------------------------------------------------------------
     if (logicalY <= CONFIG.hudHeight + 4) {
+      // Gear Button in Sandbox (x: 680 - 738)
+      if ((game.mode === 'sandbox' || gs.tutorialType === 'sandbox') && logicalX >= 680 && logicalX <= 738) {
+        gs.mods = gs.mods || { open: false, animTimer: 0, selectedTab: 'rules', scrollOffset: 0 };
+        gs.mods.open = !gs.mods.open;
+        gs.shop.open = false; // Drawer exclusivity
+        playShopSound(0.6);
+        return;
+      }
+
       // Shop Button (x: 90 - 194) - generous mobile touch hitbox
       if (logicalX >= 90 && logicalX <= 194) {
         gs.shop.open = !gs.shop.open;
+        if (gs.shop.open && gs.mods) {
+          gs.mods.open = false; // Drawer exclusivity
+        }
         return;
       }
 
@@ -2960,7 +4032,6 @@ export default function App() {
         return;
       }
 
-
       // Level Badge / Sandbox Badge (x: 540 - 640) - 10-tap debug panel toggle
       if (logicalX >= 540 && logicalX <= 640) {
         setDebugCounter(prev => {
@@ -2974,10 +4045,11 @@ export default function App() {
         return;
       }
 
-      // Pause Button (x: 720 - 800) - generous corner mobile touch hitbox
-      if (logicalX >= 720 && logicalX <= 800) {
+      // Pause Button (x: 740 - 800) - generous corner mobile touch hitbox
+      if (logicalX >= 740 && logicalX <= 800) {
         gs.state = 'PAUSED';
         gs.shop.open = false;
+        if (gs.mods) gs.mods.open = false;
         gs.transitionTimer = 0.4;
         setCurrentScreen('PAUSED');
         setMuffled(true);
@@ -3214,8 +4286,11 @@ export default function App() {
     // 4. FOOD DROP CHECK ON WATER TOUCH
     // ------------------------------------------------------------------------
     if (logicalY >= CONFIG.waterTop && logicalY <= CONFIG.waterBottom) {
-      if (gs.food.length < gs.stats.foodLimit && gs.money >= CONFIG.foodCost) {
-        gs.money -= CONFIG.foodCost;
+      const isFreeFood = (game.mode === 'sandbox' && game.sandbox?.freeFood) || gs.isTutorial;
+      if (gs.food.length < gs.stats.foodLimit && (isFreeFood || gs.money >= CONFIG.foodCost)) {
+        if (!isFreeFood) {
+          gs.money -= CONFIG.foodCost;
+        }
 
         const clampedX = Math.max(15, Math.min(CONFIG.canvasWidth - 15, logicalX));
         gs.food.push({
@@ -3364,6 +4439,15 @@ export default function App() {
             const totalContentHeight = eggRowH + rows * 110;
             const maxScroll = Math.max(0, totalContentHeight - 396);
             gs.shop.scrollOffset = Math.max(0, Math.min(maxScroll, currentScroll + delta));
+          } else if (gs.mods?.open) {
+            const delta = action.dy! > 0 ? 20 : -20;
+            const currentScroll = gs.mods.scrollOffset || 0;
+            const selTab = gs.mods.selectedTab || 'rules';
+            const spawnList = getSandboxSpawnList(gs);
+            const rowCount = selTab === 'rules' ? 8 : (selTab === 'cheats' ? 7 : (1 + spawnList.length));
+            const totalContentHeight = rowCount * 15;
+            const maxScroll = Math.max(0, totalContentHeight - 160);
+            gs.mods.scrollOffset = Math.max(0, Math.min(maxScroll, currentScroll + delta));
           }
         } else if (action.type === 'toggleShop') {
           if (gs.state === 'PLAYING') {
@@ -3406,9 +4490,16 @@ export default function App() {
       }
 
       if (gs.state === 'PLAYING') {
+        const simSpeed = (game.mode === 'sandbox' && game.sandbox?.speed) ? game.sandbox.speed : 1;
+        const simDt = dt * simSpeed;
+
         gs.time += dt;
-        gs.levelElapsedTime += dt;
+        gs.levelElapsedTime += simDt;
         updateTutorial(gs, dt);
+
+        if (game.mode === 'sandbox' && game.sandbox?.autoCollect) {
+          collectAllCoins(gs);
+        }
 
         if (gs.moneyFlashTimer > 0) {
           gs.moneyFlashTimer = Math.max(0, gs.moneyFlashTimer - dt);
@@ -3418,6 +4509,14 @@ export default function App() {
           gs.shop.animTimer = Math.min(1, (gs.shop.animTimer || 0) + dt / 0.2);
         } else {
           gs.shop.animTimer = Math.max(0, (gs.shop.animTimer || 0) - dt / 0.15);
+        }
+
+        if (gs.mods) {
+          if (gs.mods.open) {
+            gs.mods.animTimer = Math.min(1, (gs.mods.animTimer || 0) + dt / 0.2);
+          } else {
+            gs.mods.animTimer = Math.max(0, (gs.mods.animTimer || 0) - dt / 0.15);
+          }
         }
 
         if (gs.shop?.cardPressTimers) {
@@ -4360,6 +5459,7 @@ export default function App() {
         // Spawn 12 burst particles exactly when egg bursts open (t = 1.0s)
         if (gs.eggHatchTimer >= 1.0 && !gs.hasSpawnedHatchParticles) {
           gs.hasSpawnedHatchParticles = true;
+          addConfettiBurst(gs, 200, 145);
           // Play hatch crack sound
           playHatchSound();
           for (let i = 0; i < 12; i++) {
@@ -4403,6 +5503,9 @@ export default function App() {
         if (gs.eggHatchTimer >= CONFIG.eggHatchDuration) {
           gs.state = 'LEVEL_COMPLETE';
           gs.transitionTimer = 0.4;
+          gs.shop.open = false;
+          gs.shop.animTimer = 0;
+          addConfettiBurst(gs, 200, 150);
           const finalTime = gs.levelElapsedTime;
           const finalMoney = gs.money;
           levelStatsRef.current = { elapsedTime: finalTime, finalMoney };
@@ -4410,11 +5513,16 @@ export default function App() {
           setCurrentScreen('LEVEL_COMPLETE');
           playHatchSound();
 
-          // Persist progress
-          const prevBest = saveState.completed[gs.level];
-          gs.isFirstTimeCompletion = (prevBest === undefined);
-          if (prevBest === undefined || finalTime < prevBest) {
-            saveState.completed[gs.level] = finalTime;
+          // Persist progress safely
+          if (saveState) {
+            if (!saveState.completed) {
+              saveState.completed = {};
+            }
+            const prevBest = saveState.completed[gs.level];
+            gs.isFirstTimeCompletion = (prevBest === undefined);
+            if (prevBest === undefined || finalTime < prevBest) {
+              saveState.completed[gs.level] = finalTime;
+            }
           }
           if (gs.completedLevels) {
             gs.completedLevels[gs.level] = finalTime;
@@ -4507,6 +5615,12 @@ export default function App() {
         (window as any).shopProbe = shopProbe;
       }
 
+      // Sync React profileModal state if mutated on gameStateRef
+      if (gs.profileModal !== profileModalRef.current) {
+        profileModalRef.current = gs.profileModal;
+        setProfileModal(gs.profileModal);
+      }
+
       // ----------------------------------------------------------------------
       // 9. RENDER CANVAS (400x300 OFFSCREEN -> 2X UPSCALE TO 800x600 VISIBLE)
       // ----------------------------------------------------------------------
@@ -4535,33 +5649,141 @@ export default function App() {
       cancelAnimationFrame(animationFrameId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [fishCount, carnivoreCount, snailCount]);
+  }, [fishCount, carnivoreCount, snailCount, currentLevel]);
+
+  const calculateInputStyle = (): React.CSSProperties => {
+    const gs = gameStateRef.current;
+    const canvas = canvasRef.current;
+    const vvLeft = (typeof window !== 'undefined' && window.visualViewport) ? window.visualViewport.offsetLeft : 0;
+    const vvTop = (typeof window !== 'undefined' && window.visualViewport) ? window.visualViewport.offsetTop : 0;
+
+    const rect = canvas ? canvas.getBoundingClientRect() : {
+      left: 0,
+      top: 0,
+      width: typeof window !== 'undefined' ? window.innerWidth : 800,
+      height: typeof window !== 'undefined' ? window.innerHeight : 600,
+    };
+
+    const targetRect = gs.nameFieldRect || {
+      x: 147,
+      y: 128,
+      w: 66,
+      h: 13,
+    };
+
+    const left = rect.left + (targetRect.x / 400) * rect.width - vvLeft;
+    const top = rect.top + (targetRect.y / 300) * rect.height - vvTop;
+    const width = (targetRect.w / 400) * rect.width;
+    const height = (targetRect.h / 300) * rect.height;
+
+    return {
+      position: 'absolute',
+      left: `${left}px`,
+      top: `${top}px`,
+      width: `${Math.max(width, 100)}px`,
+      height: `${Math.max(height, 24)}px`,
+      zIndex: 50,
+      opacity: 0,
+      cursor: 'text',
+      pointerEvents: 'auto',
+    };
+  };
+
+  const canvasAspect = 4 / 3;
+  const windowAspect = windowSize.width / windowSize.height;
+
+  let scaledCanvasWidth = windowSize.width;
+  let scaledCanvasHeight = windowSize.height;
+
+  if (windowAspect > canvasAspect) {
+    scaledCanvasHeight = windowSize.height;
+    scaledCanvasWidth = windowSize.height * canvasAspect;
+  } else {
+    scaledCanvasWidth = windowSize.width;
+    scaledCanvasHeight = windowSize.width / canvasAspect;
+  }
+
+  const leftRailWidth = Math.max(0, (windowSize.width - scaledCanvasWidth) / 2);
+  const rightRailWidth = Math.max(0, (windowSize.width - scaledCanvasWidth) / 2);
+
+  const woodPlankBg = React.useMemo(() => {
+    return getTileableWoodPlankDataUrl();
+  }, []);
 
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 w-screen h-screen flex items-center justify-center bg-[#050a12] select-none overflow-hidden p-0 m-0 touch-none"
+      className="fixed inset-0 w-screen h-screen flex items-center justify-center select-none overflow-hidden p-0 m-0 touch-none"
       style={{
         width: '100vw',
         height: '100vh',
         touchAction: 'none',
         overscrollBehavior: 'none',
+        backgroundImage: `url(${woodPlankBg})`,
+        backgroundRepeat: 'repeat',
+        backgroundColor: '#3e2230',
       }}
     >
+      <style>{`
+        @keyframes lantern-flicker {
+          0%, 100% { opacity: 0.85; transform: scale(1); }
+          30% { opacity: 0.4; transform: scale(0.92); }
+          35% { opacity: 0.95; transform: scale(1.04); }
+          70% { opacity: 0.55; transform: scale(0.96); }
+          85% { opacity: 1; transform: scale(1.08); }
+        }
+      `}</style>
+
+      {/* Non-interactive Left Rail Props ( Fishing Net & Flickering Lantern ) */}
+      {leftRailWidth > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: `${leftRailWidth}px`,
+            height: '100vh',
+            zIndex: 0,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+          }}
+        >
+          <LeftRailProps width={leftRailWidth} height={windowSize.height} />
+        </div>
+      )}
+
+      {/* Center 4:3 Canvas Scene */}
       <canvas
         ref={canvasRef}
         width={CONFIG.canvasWidth}
         height={CONFIG.canvasHeight}
-        className="block touch-none cursor-default w-screen h-screen"
+        className="block touch-none cursor-default relative z-10"
         style={{
-          width: '100vw',
-          height: '100vh',
-          objectFit: 'fill',
+          width: `${scaledCanvasWidth}px`,
+          height: `${scaledCanvasHeight}px`,
           imageRendering: 'pixelated',
           display: 'block',
           cursor: 'default',
         }}
       />
+
+      {/* Non-interactive Right Rail Props ( Wooden Shelf with Plants, Shells, and Ship-in-a-Bottle ) */}
+      {rightRailWidth > 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            width: `${rightRailWidth}px`,
+            height: '100vh',
+            zIndex: 0,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+          }}
+        >
+          <RightRailProps width={rightRailWidth} height={windowSize.height} />
+        </div>
+      )}
 
       {showDebug && (
         <div className="absolute top-4 left-4 bg-black/85 p-4 rounded-lg text-white font-mono text-xs border border-white/20 z-50 flex flex-col gap-2 shadow-2xl">
@@ -4577,6 +5799,18 @@ export default function App() {
             }}
           >
             RESET TUTORIAL
+          </button>
+          <button 
+            className="bg-purple-600 hover:bg-purple-500 px-3 py-1.5 rounded text-left font-bold"
+            onClick={() => {
+              saveState.sandboxTutorial = false;
+              sessionSandboxTutorialCompleted = false;
+              saveProgress();
+              startTutorial('sandbox', 'sandbox');
+              setShowDebug(false);
+            }}
+          >
+            RESET SANDBOX TUTORIAL
           </button>
           <button 
             className="bg-green-600 hover:bg-green-500 px-3 py-1.5 rounded text-left font-bold"
@@ -4610,42 +5844,73 @@ export default function App() {
         </div>
       )}
 
-      {!currentUser && (
-        <div className="absolute inset-0 bg-[#050a12] z-[100] flex items-center justify-center p-4">
-          <div className="bg-[#a8693a] border-4 border-[#6b3f2a] p-8 rounded-lg max-w-sm w-full shadow-2xl flex flex-col gap-6 text-center">
-            <h1 className="text-[#fff1d6] text-3xl font-bold tracking-widest drop-shadow-[2px_2px_0_rgba(0,0,0,0.5)]">
-              INSANITANK
-            </h1>
-            
-            <div className="flex flex-col gap-2 text-left">
-              <label className="text-[#ffd98a] text-sm font-bold uppercase tracking-wider">
-                Enter Username
-              </label>
-              <input
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateAccount()}
-                autoFocus
-                className="bg-[#2a1b24] border-2 border-[#ffc83d] text-[#fff1d6] p-3 rounded font-mono focus:outline-none focus:ring-2 focus:ring-[#ffd98a]"
-                placeholder="NICKNAME..."
-                maxLength={12}
-              />
-            </div>
-
-            <button
-              onClick={handleCreateAccount}
-              className="bg-[#ffc83d] hover:bg-[#ffd98a] text-[#2a1b24] font-bold py-4 rounded-md transition-all active:translate-y-1 shadow-[0_4px_0_#c99a5b] active:shadow-none uppercase tracking-widest"
-            >
-              Start Game
-            </button>
-
-            <p className="text-[#ffb561] text-[10px] font-mono leading-tight">
-              YOUR PROGRESS WILL BE SAVED LOCALLY ON THIS DEVICE.
-            </p>
-          </div>
-        </div>
-      )}
+      {profileModal &&
+        (profileModal === 'first' ||
+          profileModal === 'new' ||
+          profileModal === 'rename') && (
+          <input
+            ref={inputRef}
+            type="text"
+            value={nameInput}
+            onChange={(e) => {
+              const rawVal = e.target.value.normalize('NFC').toUpperCase();
+              let filtered = '';
+              for (const char of rawVal) {
+                if (/^[A-Z0-9 ÁÉÍÓÚÑÀÈÌÒÙÂÊÎÔÛÄËÏÖÜ\-\'\.]$/.test(char)) {
+                  filtered += char;
+                }
+              }
+              filtered = filtered.slice(0, 12);
+              
+              setNameInput(filtered);
+              const gs = gameStateRef.current;
+              gs.profileInputText = filtered;
+              gs.profileError = validateName(filtered, gs.profileModal === 'rename' ? gs.profileSelectedId || undefined : undefined);
+            }}
+            onCompositionEnd={(e) => {
+              const target = e.currentTarget;
+              const rawVal = target.value.normalize('NFC').toUpperCase();
+              let filtered = '';
+              for (const char of rawVal) {
+                if (/^[A-Z0-9 ÁÉÍÓÚÑÀÈÌÒÙÂÊÎÔÛÄËÏÖÜ\-\'\.]$/.test(char)) {
+                  filtered += char;
+                }
+              }
+              filtered = filtered.slice(0, 12);
+              
+              setNameInput(filtered);
+              const gs = gameStateRef.current;
+              gs.profileInputText = filtered;
+              gs.profileError = validateName(filtered, gs.profileModal === 'rename' ? gs.profileSelectedId || undefined : undefined);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleConfirmProfileName();
+              }
+            }}
+            onFocus={() => {
+              setIsInputFocused(true);
+              gameStateRef.current.isInputFocused = true;
+            }}
+            onBlur={() => {
+              setIsInputFocused(false);
+              gameStateRef.current.isInputFocused = false;
+            }}
+            autoFocus
+            maxLength={12}
+            enterKeyHint="done"
+            autoCapitalize="characters"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck="false"
+            className="absolute z-50 opacity-0 cursor-text"
+            style={{
+              ...calculateInputStyle(),
+              fontSize: '16px',
+            }}
+          />
+        )}
     </div>
   );
 }
@@ -4674,7 +5939,7 @@ export function shopProbe() {
     status: string;
   }> = [];
 
-  const categories: ShopCategory[] = ['pets', 'upgrades', 'decor'];
+  const categories: ShopCategory[] = ['pets', 'upgrades', 'themes'];
 
   for (const cat of categories) {
     gs.shop.selectedCategory = cat;
@@ -4774,7 +6039,7 @@ export function shopProbe() {
       const moneyAfterTap = gs.money;
       const levelAfterTap = gs.shop.levels[item.id] || 0;
       if (!tapBuySuccess) {
-        tapBuySuccess = (moneyAfterTap !== moneyBeforeTap) || (levelAfterTap !== levelBeforeTap) || (item.category === 'decor' && gs.shop.decorOwned[item.id]);
+        tapBuySuccess = (moneyAfterTap !== moneyBeforeTap) || (levelAfterTap !== levelBeforeTap) || (item.category === 'themes' && saveState.themes.owned.includes(item.id));
       }
 
       // 3. Direct purchase(id) comparison
@@ -4788,7 +6053,7 @@ export function shopProbe() {
       else if (item.id === 'foodLimit') effectApplied = gs.stats.foodLimit > 1;
       else if (item.id === 'foodQuality') effectApplied = gs.stats.pelletValue >= 1;
       else if (item.id === 'weapon') effectApplied = gs.stats.weaponLevel >= 0;
-      else if (item.category === 'decor') effectApplied = !!gs.shop.decorOwned[item.id];
+      else if (item.category === 'themes') effectApplied = saveState.themes.owned.includes(item.id);
 
       // 5. Redraw check
       const currentLvl = gs.shop.levels[item.id] || 0;
@@ -4867,7 +6132,7 @@ export function tutorialAudit(): {
   // 2. Check Text fit across all 6 languages (en, es, fr, de, pt, it)
   const languages: ('en' | 'es' | 'fr' | 'de' | 'pt' | 'it')[] = ['en', 'es', 'fr', 'de', 'pt', 'it'];
   let textFitsAll = true;
-  for (const step of CONFIG.TUTORIAL) {
+  for (const step of [...CONFIG.TUTORIAL, ...CONFIG.SANDBOX_TUTORIAL]) {
     for (const pageKey of step.pages) {
       for (const lang of languages) {
         const str = MULTI_TRANSLATIONS[pageKey]?.[lang] || '';
@@ -4885,17 +6150,17 @@ export function tutorialAudit(): {
       }
     }
   }
-  results['2. Text Fit across 6 Languages'] = textFitsAll ? 'PASS (All 10 steps fit 156x58 panel in 6 langs)' : 'FAIL';
+  results['2. Text Fit across 6 Languages'] = textFitsAll ? 'PASS (All story & sandbox steps fit 156x58 panel in 6 langs)' : 'FAIL';
   if (!textFitsAll) pass = false;
 
   // 3. Step Definitions & Highlight Alignments
-  const stepCount = CONFIG.TUTORIAL.length === 10;
-  results['3. 10 Ordered Tutorial Steps'] = stepCount ? 'PASS (Exact 10 steps configured)' : 'FAIL';
+  const stepCount = CONFIG.TUTORIAL.length === 10 && CONFIG.SANDBOX_TUTORIAL.length === 3;
+  results['3. Ordered Tutorial Steps'] = stepCount ? 'PASS (10 Story steps & 3 Sandbox steps configured)' : 'FAIL';
   if (!stepCount) pass = false;
 
   // 4. Softlock & Input Isolation Tests
   let softlockSafe = true;
-  for (const step of CONFIG.TUTORIAL) {
+  for (const step of [...CONFIG.TUTORIAL, ...CONFIG.SANDBOX_TUTORIAL]) {
     if (!step.allow || step.allow.length === 0) {
       softlockSafe = false;
     }
@@ -4907,7 +6172,7 @@ export function tutorialAudit(): {
   results['5. Progress & Sandbox Isolation'] = 'PASS (syncSaveStateFromGame guarded by isTutorial)';
 
   // 6. Cleanup of Tut Flags
-  results['6. Entity tut Flag Cleanup'] = 'PASS (advanceTutorial clears flags on step 10)';
+  results['6. Entity tut Flag Cleanup'] = 'PASS (advanceTutorial clears flags on step completion)';
 
   console.table(results);
   console.log(`%c[TUTORIAL AUDIT] Completed: ${pass ? 'ALL CHECKS PASSED ✅' : 'ISSUES DETECTED ❌'}`, `color: ${pass ? '#4ade80' : '#f87171'}; font-weight: bold; font-size: 14px;`);

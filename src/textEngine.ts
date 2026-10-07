@@ -95,6 +95,90 @@ export const MULTI_TRANSLATIONS: Record<string, Record<Language, string>> = {
     pt: 'MODO SANDBOX',
     it: 'MODALITÀ SANDBOX',
   },
+  'menu.language': { en: 'LANGUAGE', es: 'IDIOMA', fr: 'LANGUE', de: 'SPRACHE', pt: 'IDIOMA', it: 'LINGUA' },
+  'settings.graphics': { en: 'GRAPHICS', es: 'GRÁFICOS', fr: 'GRAPHISMES', de: 'GRAFIK', pt: 'GRÁFICOS', it: 'GRAFICA' },
+  'settings.optimization': { en: 'OPTIMIZATION', es: 'OPTIMIZACIÓN', fr: 'OPTIMISATION', de: 'OPTIMIERUNG', pt: 'OPTIMIZAÇÃO', it: 'OTTIMIZZAZIONE' },
+  'settings.waterFx': { en: 'WATER FX', es: 'EFECTOS AGUA', fr: 'EFFETS EAU', de: 'WASSER FX', pt: 'EFEITOS ÁGUA', it: 'EFFETTI ACQUA' },
+  'settings.fpsCap': { en: 'FPS CAP', es: 'LÍMITE FPS', fr: 'LIMITE FPS', de: 'FPS LIMIT', pt: 'LIMITE FPS', it: 'LIMITI FPS' },
+  'settings.lowPower': { en: 'LOW POWER', es: 'AHORRO BATERÍA', fr: 'ÉCONOMIE ÉNERGIE', de: 'ENERGIESPAREN', pt: 'MODO BATERIA', it: 'RISPARMIO ENERGIA' },
+  'settings.resetData': { en: 'RESET DATA', es: 'BORRAR DATOS', fr: 'RÉINITIALISER', de: 'DATEN ZURÜCKSETZEN', pt: 'REDEFINIR DADOS', it: 'AZZERA DATI' },
+  'settings.confirmTitle': { en: 'CONFIRM RESET?', es: '¿CONFIRMAR REINICIO?', fr: 'CONFIRMER RÉINITIALISATION ?', de: 'ZURÜCKSETZEN BESTÄTIGEN?', pt: 'CONFIRMAR REDEFINIÇÃO?', it: 'CONFERMA RIPRISTINO?' },
+  'settings.confirmWarn1': { en: 'ARE YOU SURE YOU WANT TO RESET ALL PROGRESS?', es: '¿SEGURO QUE DESEAS BORRAR TODO TU PROGRESO?', fr: 'ÊTES-VOUS SÛR DE VOULOIR RÉINITIALISER ?', de: 'BIST DU SICHER, DASS DU ALLES ZURÜCKSETZEN WILLST?', pt: 'TEM CERTEZA DE QUE DESEJA APAGAR SEU PROGRESSO?', it: 'SEI SICURO DI VOLER AZZERARE TUTTI I MIEI PROGRESSI?' },
+  'settings.confirmWarn2': { en: 'ALL UNLOCKED LEVELS AND SAVED DATA WILL BE ERASED!', es: '¡TODOS LOS NIVELES Y TEMAS SE BORRARÁN PARA SIEMPRE!', fr: 'TOUS LES NIVEAUX ET THÈMES SERONT EFFACÉS !', de: 'ALLE FREIGESCHALTETEN LEVELS WERDEN GELÖSCHT!', pt: 'TODOS OS NÍVEIS E TEMAS SERÃO APAGADOS!', it: 'TUTTI I LIVELLI E TEMI VERRANNO CANCELLATI!' },
+  'settings.cancel': { en: 'CANCEL', es: 'CANCELAR', fr: 'ANNULER', de: 'ABBRECHEN', pt: 'CANCELAR', it: 'ANNULLA' },
+  'settings.confirmErase': { en: 'ERASE ALL DATA', es: 'BORRAR TODO', fr: 'EFFACER TOUT', de: 'ALLES LÖSCHEN', pt: 'APAGAR TUDO', it: 'CANCELLA TUTTO' },
+  'profile.whatsYourName': { en: "WHAT'S YOUR NAME?", es: '¿CUÁL ES TU NOMBRE?', fr: 'QUEL EST VOTRE NOM ?', de: 'WIE HEISST DU?', pt: 'QUAL É O SEU NOME?', it: 'COME TI CHIAMI?' },
+  'profile.welcomeBack': { en: 'WELCOME BACK,', es: 'BIENVENIDO DE NUEVO,', fr: 'BON RETOUR,', de: 'WILLKOMMEN ZURÜCK,', pt: 'BEM-VINDO DE VOLTA,', it: 'BENTORNATO,' },
+  'profile.welcome': { en: 'WELCOME,', es: 'BIENVENIDO,', fr: 'BIENVENUE,', de: 'WILLKOMMEN,', pt: 'BEM-VINDO,', it: 'BENVENUTO,' },
+  'profile.changeUser': { en: 'CHANGE USER', es: 'CAMBIAR USUARIO', fr: 'CHANGER DE JOUEUR', de: 'BENUTZER WECHSELN', pt: 'TROCAR USUÁRIO', it: 'CAMBIA UTENTE' },
+  'profile.whoAreYou': { en: 'WHO ARE YOU?', es: '¿QUIÉN ERES?', fr: 'QUI ÊTES-VOUS ?', de: 'WER BIST DU?', pt: 'QUEM É VOCÊ?', it: 'CHI SEI?' },
+  'profile.new': { en: 'NEW', es: 'NUEVO', fr: 'NOUVEAU', de: 'NEU', pt: 'NOVO', it: 'NUOVO' },
+  'profile.rename': { en: 'RENAME', es: 'RENOMBRAR', fr: 'RENOMMER', de: 'UMBENENNEN', pt: 'RENOMEAR', it: 'RINOMINA' },
+  'profile.delete': { en: 'DELETE', es: 'ELIMINAR', fr: 'SUPPRIMER', de: 'LÖSCHEN', pt: 'EXCLUIR', it: 'ELIMINA' },
+  'profile.ok': { en: 'OK', es: 'ACEPTAR', fr: 'OK', de: 'OK', pt: 'OK', it: 'OK' },
+  'profile.cancel': { en: 'CANCEL', es: 'CANCELAR', fr: 'ANNULER', de: 'ABBRECHEN', pt: 'CANCELAR', it: 'ANNULLA' },
+  'profile.maxPlayers': { en: 'MAX 8 PLAYERS', es: 'MÁX. 8 JUGADORES', fr: 'MAX 8 JOUEURS', de: 'MAX. 8 SPIELER', pt: 'MÁX. 8 JOGADORES', it: 'MAX 8 GIOCATORI' },
+  'profile.storageUnavailable': { en: 'SAVING IS UNAVAILABLE IN THIS BROWSER', es: 'EL GUARDADO NO ESTÁ DISPONIBLE EN ESTE NAVEGADOR', fr: 'SAUVEGARDE INDISPONIBLE DANS CE NAVIGATEUR', de: 'SPEICHERN IN DIESEM BROWSER NICHT MÖGLICH', pt: 'SALVAMENTO INDISPONÍVEL NESTE NAVEGADOR', it: 'SALVATAGGIO NON DISPONIBILE IN QUESTO BROWSER' },
+  'profile.enterName': { en: 'ENTER A NAME', es: 'INGRESA UN NOMBRE', fr: 'ENTREZ UN NOM', de: 'NAMEN EINGEBEN', pt: 'DIGITE UM NOME', it: 'INSERISCI UN NOME' },
+  'profile.nameTaken': { en: 'NAME TAKEN', es: 'NOMBRE OCUPADO', fr: 'NOM DÉJÀ PRIS', de: 'NAME VERGEBEN', pt: 'NOME JÁ EM USO', it: 'NOME GIÀ IN USO' },
+  'profile.deleteConfirm': { en: 'DELETE {0} AND ALL THEIR PROGRESS?', es: '¿ELIMINAR A {0} Y TODO SU PROGRESO?', fr: 'SUPPRIMER {0} ET TOUTE SA PROGRESSION ?', de: '{0} UND GESAMTEN FORTSCHRITT LÖSCHEN?', pt: 'EXCLUIR {0} E TODO SEU PROGRESSO?', it: 'ELIMINARE {0} E TUTTI I SUOI PROGRESSI?' },
+  'profile.deleteTitle': { en: 'DELETE?', es: '¿BORRAR?', fr: 'SUPPR. ?', de: 'LÖSCHEN?', pt: 'EXCLUIR?', it: 'ELIM.?' },
+  'profile.deleteWarn': { en: 'ALL PROGRESS WILL BE LOST.', es: 'TODO EL PROGRESO SE PERDERÁ.', fr: 'TOUTE LA PROGRESSION SERA PERDUE.', de: 'FORTSCHRITT GEHT VERLOREN.', pt: 'TODO O PROGRESSO SERÁ PERDIDO.', it: 'TUTTI I PROGRESSI ANDRANNO PERSI.' },
+};
+
+export const ACCOUNT_SHORT_FORMS: Record<string, Record<Language, string>> = {
+  'profile.new': { en: 'NEW', es: 'NUEVO', fr: 'NOUV.', de: 'NEU', pt: 'NOVO', it: 'NUOVO' },
+  'profile.rename': { en: 'EDIT', es: 'EDITAR', fr: 'ÉDITER', de: 'EDIT', pt: 'EDITAR', it: 'EDITA' },
+  'profile.delete': { en: 'DEL', es: 'BORRAR', fr: 'SUPPR.', de: 'LÖSCHEN', pt: 'EXCLUIR', it: 'ELIM.' },
+  'profile.ok': { en: 'OK', es: 'OK', fr: 'OK', de: 'OK', pt: 'OK', it: 'OK' },
+  'profile.cancel': { en: 'CANCEL', es: 'CANCEL', fr: 'ANNUL.', de: 'ABBR.', pt: 'CANCEL', it: 'ANNUL.' },
+  'profile.changeUser': { en: 'CHANGE', es: 'CAMBIAR', fr: 'CHANGER', de: 'WECHSEL', pt: 'TROCAR', it: 'CAMBIA' },
+  'profile.welcome': { en: 'WELCOME', es: 'HOLA', fr: 'SALUT', de: 'HALLO', pt: 'OLÁ', it: 'CIAO' },
+  'profile.welcomeBack': { en: 'WELCOME', es: 'HOLA', fr: 'SALUT', de: 'HALLO', pt: 'OLÁ', it: 'CIAO' },
+  'profile.whoAreYou': { en: 'WHO?', es: 'QUIÉN?', fr: 'QUI ?', de: 'WER?', pt: 'QUEM?', it: 'CHI?' },
+  'profile.whatsYourName': { en: 'NAME?', es: 'NOMBRE?', fr: 'NOM ?', de: 'NAME?', pt: 'NOME?', it: 'NOME?' },
+  'profile.deleteTitle': { en: 'DELETE?', es: 'BORRAR?', fr: 'SUPPR.?', de: 'LÖSCH?', pt: 'EXCL.?', it: 'ELIM.?' },
+  'profile.deleteWarn': { en: 'LOST', es: 'PERDIDO', fr: 'PERDU', de: 'VERLOREN', pt: 'PERDIDO', it: 'PERSO' },
+  'profile.storageUnavailable': { en: 'NO SAVE', es: 'SIN GRAV', fr: 'NO SAVE', de: 'KEIN SP', pt: 'SEM GRAV', it: 'NO SALVA' },
+  'profile.maxPlayers': { en: 'MAX 8', es: 'MÁX 8', fr: 'MAX 8', de: 'MAX 8', pt: 'MÁX 8', it: 'MAX 8' },
+  'profile.enterName': { en: 'NAME', es: 'NOMBRE', fr: 'UN NOM', de: 'NAME', pt: 'UM NOME', it: 'UN NOME' },
+  'profile.nameTaken': { en: 'TAKEN', es: 'OCUPADO', fr: 'PRIS', de: 'BESETZT', pt: 'EM USO', it: 'IN USO' },
+};
+
+export function tShort(key: string, lang?: Language): string {
+  const targetLang = lang || getLanguage();
+  if (ACCOUNT_SHORT_FORMS[key] && ACCOUNT_SHORT_FORMS[key][targetLang]) {
+    return ACCOUNT_SHORT_FORMS[key][targetLang];
+  }
+  return t(key, targetLang);
+}
+
+export const MULTI_TRANSLATIONS_PART2: Record<string, Record<Language, string>> = {
+  'sandbox.mods': { en: 'MODS', es: 'MODS', fr: 'MODS', de: 'MODS', pt: 'MODS', it: 'MODS' },
+  'sandbox.rules': { en: 'RULES', es: 'REGLAS', fr: 'RÈGLES', de: 'REGELN', pt: 'REGRAS', it: 'REGOLE' },
+  'sandbox.cheats': { en: 'CHEATS', es: 'TRUCOS', fr: 'TRICHER', de: 'CHEATS', pt: 'TRUQUES', it: 'TRUCCHI' },
+  'sandbox.spawn': { en: 'SPAWN', es: 'GENERAR', fr: 'APPARITION', de: 'SPAWN', pt: 'GERAR', it: 'SPAWN' },
+  'sandbox.freeShop': { en: 'Free Shop', es: 'Tienda Gratis', fr: 'Boutique Gratuite', de: 'Kostenloser Shop', pt: 'Loja Grátis', it: 'Negozio Gratis' },
+  'sandbox.freeFood': { en: 'Free Food', es: 'Comida Gratis', fr: 'Nourriture Gratuite', de: 'Kostenloses Futter', pt: 'Ração Grátis', it: 'Cibo Gratis' },
+  'sandbox.hunger': { en: 'Fish Hunger', es: 'Hambre Peces', fr: 'Faim Poissons', de: 'Fisch-Hunger', pt: 'Fome dos Peixes', it: 'Fame Pesci' },
+  'sandbox.aliens': { en: 'Aliens Spawn', es: 'Aparecer Aliens', fr: 'Apparition Aliens', de: 'Aliens Spawnen', pt: 'Gerar Aliens', it: 'Spawn Alieni' },
+  'sandbox.godMode': { en: 'God Mode', es: 'Modo Dios', fr: 'Mode Dieu', de: 'Gott-Modus', pt: 'Modo Deus', it: 'Modalità Dio' },
+  'sandbox.autoCollect': { en: 'Auto Collect', es: 'Auto Recoger', fr: 'Collecte Auto', de: 'Auto-Sammeln', pt: 'Coleta Auto', it: 'Raccolta Auto' },
+  'sandbox.limitBreaker': { en: 'Limit Breaker', es: 'Romper Límite', fr: 'Dépasse-Limite', de: 'Limit-Brecher', pt: 'Quebrar Limite', it: 'Sblocca Limiti' },
+  'sandbox.speed': { en: 'Speed', es: 'Velocidad', fr: 'Vitesse', de: 'Tempo', pt: 'Velocidade', it: 'Velocità' },
+  'sandbox.add100': { en: '+$100', es: '+$100', fr: '+$100', de: '+$100', pt: '+$100', it: '+$100' },
+  'sandbox.add1000': { en: '+$1,000', es: '+$1.000', fr: '+$1 000', de: '+$1.000', pt: '+$1.000', it: '+$1.000' },
+  'sandbox.add10000': { en: '+$10,000', es: '+$10.000', fr: '+$10 000', de: '+$10.000', pt: '+$10.000', it: '+$10.000' },
+  'sandbox.feedAll': { en: 'Feed All Fish', es: 'Alimentar Todos', fr: 'Nourrir Tous', de: 'Alle Füttern', pt: 'Alimentar Todos', it: 'Nutri Tutti' },
+  'sandbox.growAll': { en: 'Grow All', es: 'Crecer Todos', fr: 'Grandir Tous', de: 'Alle Wachsen', pt: 'Crescer Todos', it: 'Cresci Tutti' },
+  'sandbox.collectCoins': { en: 'Collect Coins', es: 'Recoger Monedas', fr: 'Récolter Pièces', de: 'Münzen Sammeln', pt: 'Pegar Moedas', it: 'Raccogli Monete' },
+  'sandbox.maxUpgrades': { en: 'Max Upgrades', es: 'Max Mejoras', fr: 'Améliorations Max', de: 'Max Upgrades', pt: 'Melhorias Máx', it: 'Miglioramenti Max' },
+  'sandbox.spawnFish': { en: 'Spawn Fish', es: 'Generar Pez', fr: 'Creer Poisson', de: 'Fisch Spawnen', pt: 'Gerar Peixe', it: 'Crea Pesce' },
+  'sandbox.spawnGargo': { en: 'Spawn Gargo', es: 'Generar Gargo', fr: 'Creer Gargo', de: 'Gargo Spawnen', pt: 'Gerar Gargo', it: 'Crea Gargo' },
+  'sandbox.killAliens': { en: 'Kill Aliens', es: 'Eliminar Aliens', fr: 'Tuer Aliens', de: 'Aliens Töten', pt: 'Matar Aliens', it: 'Elimina Alieni' },
+  'sandbox.spawnSize': { en: 'Size', es: 'Tamaño', fr: 'Taille', de: 'Größe', pt: 'Tamanho', it: 'Taglia' },
+  'sandbox.carnivore': { en: 'Carnivore', es: 'Carnívoro', fr: 'Carnivore', de: 'Karnivor', pt: 'Carnívoro', it: 'Carnivoro' },
+  'sandbox.snail': { en: 'Snail', es: 'Caracol', fr: 'Escargot', de: 'Schnecke', pt: 'Caracol', it: 'Chiocciola' },
   'tut.1.1': {
     en: "HI! I'M SHELLY. LET'S LEARN HOW TO RUN A TANK!",
     es: "¡HOLA! SOY SHELLY. ¡APRENDAMOS A CUIDAR EL ACUARIO!",
@@ -246,6 +330,46 @@ export const MULTI_TRANSLATIONS: Record<string, Record<Language, string>> = {
     de: 'DU BIST BEREIT! VIEL GLÜCK!',
     pt: 'VOCÊ ESTÁ PRONTO! BOA SORTE!',
     it: 'SEI PRONTO! BUONA FORTUNA!',
+  },
+  'tut.sb.1.1': {
+    en: "WELCOME TO SANDBOX MODE! YOU HAVE FULL FREEDOM TO BUILD YOUR TANK.",
+    es: "¡BIENVENIDO AL MODO SANDBOX! TIENES LIBERTAD TOTAL PARA TU ACUARIO.",
+    fr: "BIENVENUE EN MODE SANDBOX ! CRÉEZ VOTRE AQUARIUM EN TOUTE LIBERTÉ.",
+    de: "WILLKOMMEN IM SANDBOX-MODUS! BAUE DEIN AQUARIUM GANZ NACH WUNSCH.",
+    pt: "BEM-VINDO AO MODO SANDBOX! LIBERDADE TOTAL PARA CRIAR SEU AQUÁRIO.",
+    it: "BENVENUTO IN MODALITÀ SANDBOX! LIBERTÀ TOTALE PER IL TUO ACQUARIO.",
+  },
+  'tut.sb.1.2': {
+    en: "TAP THE GEAR ICON AT THE TOP RIGHT TO OPEN THE MODS DRAWER.",
+    es: "TOCA EL ENGRANAJE ARRIBA A LA DERECHA PARA ABRIR LOS MODS.",
+    fr: "TOUCHEZ L'ENGRENAGE EN HAUT À DROITE POUR OUVRIR LES MODS.",
+    de: "TIPPE OBEN RECHTS AUF DAS ZAHNRAD, UM DAS MOD-MENÜ ZU ÖFFNEN.",
+    pt: "TOQUE NA ENGRENAGEM NO CANTO SUPERIOR DIREITO PARA ABRIR OS MODS.",
+    it: "TOCCA L'INGRANAGGIO IN ALTO A DESTRA PER APRIRE IL MENU MOD.",
+  },
+  'tut.sb.2.1': {
+    en: "USE THE TABS TO TOGGLE RULES, ACTIVATE CHEATS, OR SPAWN CREATURES!",
+    es: "¡USA LAS PESTAÑAS PARA REGLAS, TRUCOS O GENERAR CRIATURAS!",
+    fr: "UTILISEZ LES ONGLETS POUR LES RÈGLES, TRICHER OU CRÉER DES CRÉATURES !",
+    de: "NUTZE DIE REITER FÜR REGELN, CHEATS ODER UM WESEN ZU ERSCHAFFEN!",
+    pt: "USE AS ABAS PARA REGRAS, TRUQUES OU GERAR CRIATURAS!",
+    it: "USA LE SCHEDE PER REGOLE, TRUCCHI O PER GENERARE CREATURE!",
+  },
+  'tut.sb.2.2': {
+    en: "CUSTOMIZE FREELY! SANDBOX PROGRESS IS INDEPENDENT FROM STORY LEVELS.",
+    es: "¡PERSONALIZA A TU GUSTO! EL MODO SANDBOX ES INDEPENDIENTE DE LA HISTORIA.",
+    fr: "PERSONNALISEZ LIBREMENT ! LE SANDBOX N'AFFECTE PAS LES NIVEAUX.",
+    de: "GESTALTE FREI! DER SANDBOX-MODUS IST UNABHÄNGIG VOM STORY-MODUS.",
+    pt: "PERSONALIZE À VONTADE! O SANDBOX É INDEPENDENTE DA HISTÓRIA.",
+    it: "PERSONALIZZA LIBERAMENTE! IL SANDBOX È SEPARATO DALLA STORIA.",
+  },
+  'tut.sb.3.1': {
+    en: "HAVE FUN EXPERIMENTING WITH YOUR ULTIMATE AQUARIUM!",
+    es: "¡DIVIÉRTETE EXPERIMENTANDO CON TU ACUARIO DEFINITIVO!",
+    fr: "AMUSEZ-VOUS À EXPÉRIMENTER DANS VOTRE AQUARIUM !",
+    de: "VIEL SPASS BEIM EXPERIMENTIEREN IN DEINEM AQUARIUM!",
+    pt: "DIVIRTA-SE EXPERIMENTANDO COM SEU AQUÁRIO DEFINITIVO!",
+    it: "DIVERTITI A SPERIMENTARE CON IL TUO ACQUARIO DEI SOGNI!",
   },
   'tut.welcome': {
     en: 'Welcome to the Tank! Tap to continue.',
@@ -579,9 +703,13 @@ export const TRANSLATIONS: Record<string, string> = {
   'shop.free': 'FREE',
 };
 
-export function t(key: string): string {
+export function t(key: string, lang?: Language): string {
+  const targetLang = lang || activeLanguage;
   if (MULTI_TRANSLATIONS[key]) {
-    return MULTI_TRANSLATIONS[key][activeLanguage] || MULTI_TRANSLATIONS[key]['en'];
+    return MULTI_TRANSLATIONS[key][targetLang] || MULTI_TRANSLATIONS[key]['en'];
+  }
+  if (MULTI_TRANSLATIONS_PART2[key]) {
+    return MULTI_TRANSLATIONS_PART2[key][targetLang] || MULTI_TRANSLATIONS_PART2[key]['en'];
   }
   if (TRANSLATIONS[key]) return TRANSLATIONS[key];
   const parts = key.split('.');
@@ -1161,7 +1289,7 @@ export type FontTier = 'normal' | 'small';
 // Helper to look up glyph safely, mapping lowercase to uppercase and falling back to "?"
 export function getGlyph(ch: string, font: FontTier): string[] {
   const fontMap = font === 'small' ? FONT_3X5 : FONT_5X7;
-  const upper = ch.toUpperCase();
+  const upper = ch.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (fontMap[upper]) return fontMap[upper];
   if (fontMap[ch]) return fontMap[ch];
   if (fontMap['?']) return fontMap['?'];
@@ -1587,4 +1715,48 @@ export function drawFittedText(
     font: fitted.font,
   });
   return fitted;
+}
+
+let activeAuditWarnings: string[] | null = null;
+
+export function setActiveAuditWarnings(arr: string[] | null) {
+  activeAuditWarnings = arr;
+}
+
+export function drawTextWithClip(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  clipX: number,
+  clipY: number,
+  clipW: number,
+  clipH: number,
+  options: DrawTextOptions = {}
+) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(clipX, clipY, clipW, clipH);
+  ctx.clip();
+
+  const font = options.font || 'normal';
+  const m = measure(text, font);
+  if (x < clipX || y < clipY || x + m.width > clipX + clipW || y + m.height > clipY + clipH) {
+    const w = `[TEXT CLIP WARN] Text "${text}" (${m.width}x${m.height}) clipped by box (${clipX}, ${clipY}, ${clipW}, ${clipH})`;
+    if (activeAuditWarnings) {
+      activeAuditWarnings.push(w);
+    }
+    console.warn(w);
+  }
+
+  if (text.includes('...') || text.includes('…')) {
+    const w = `[TEXT ELLIPSIS WARN] Ellipsis is banned in account UI: "${text}"`;
+    if (activeAuditWarnings) {
+      activeAuditWarnings.push(w);
+    }
+    console.warn(w);
+  }
+
+  drawText(ctx, text, x, y, options);
+  ctx.restore();
 }

@@ -467,20 +467,6 @@ export function renderTutorialDialogueBox(ctx: CanvasRenderingContext2D, gs: Gam
   let faceColor: string = PALETTE.wood;
   let ribbonColor: PaletteKey = 'coral';
 
-  const activeTheme = saveState?.themes?.active || (gs.shop?.decorShown?.['decorMidnight'] ? 'decorMidnight' : (gs.shop?.decorShown?.['decorLagoon'] ? 'decorLagoon' : 'default'));
-  if (activeTheme === 'decorMidnight') {
-    borderColor = PALETTE.midnight4;
-    bevelLight = PALETTE.midnight1;
-    bevelDark = PALETTE.midnight4;
-    faceColor = PALETTE.midnight3;
-    ribbonColor = 'diamond';
-  } else if (activeTheme === 'decorLagoon') {
-    borderColor = PALETTE.waterDark;
-    bevelLight = PALETTE.lagoon1;
-    bevelDark = PALETTE.waterDeep;
-    faceColor = PALETTE.lagoon2;
-    ribbonColor = 'gold';
-  }
 
   // 1. Drop shadow
   ctx.fillStyle = PALETTE.outline;
@@ -608,16 +594,8 @@ export function renderTutorialHighlights(ctx: CanvasRenderingContext2D, gs: Game
     const cw = targetRect.w + pad * 2;
     const ch = targetRect.h + pad * 2;
 
-    const activeTheme = saveState?.themes?.active || (gs.shop?.decorShown?.['decorMidnight'] ? 'decorMidnight' : (gs.shop?.decorShown?.['decorLagoon'] ? 'decorLagoon' : 'default'));
     let overlayBg = 'rgba(10, 20, 30, 0.35)';
     let ditherCol: string = PALETTE.outline;
-    if (activeTheme === 'decorMidnight') {
-      overlayBg = 'rgba(6, 8, 20, 0.35)';
-      ditherCol = PALETTE.midnight4;
-    } else if (activeTheme === 'decorLagoon') {
-      overlayBg = 'rgba(4, 25, 35, 0.35)';
-      ditherCol = PALETTE.waterDark;
-    }
 
     // Viewport dim with theme's 35% checkerboard except cutout
     ctx.save();

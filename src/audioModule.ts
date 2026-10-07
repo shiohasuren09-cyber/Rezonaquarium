@@ -9,10 +9,23 @@
 // --------------------------------------------------------------------------
 export const game = {
   mode: 'levels' as 'levels' | 'sandbox' | 'tutorial',
+  storageOk: true,
+  profile: null as any,
+  progress: {
+    completed: {} as Record<string, number>,
+    tutorial: false,
+    sandboxTutorial: false,
+  },
   sandbox: {
     freeShop: true,
+    freeFood: false,
     aliens: false,
     hunger: true,
+    godMode: false,
+    autoCollect: false,
+    limitBreaker: false,
+    speed: 1,
+    spawnSize: 0,
   },
   audio: {
     master: 0.8,
