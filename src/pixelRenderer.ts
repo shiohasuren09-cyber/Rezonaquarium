@@ -1812,7 +1812,8 @@ export function renderPixelScene(
       const ditherStep: 0 | 1 | 2 | 3 = fish.isDying
         ? (Math.min(3, Math.floor((fish.fadeTimer / CONFIG.fishDeadFadeDuration) * 4)) as 0 | 1 | 2 | 3)
         : 0;
-      const carnBaked = getCarnivoreSprite(tailFrame, fish.isDying ? 'dying' : 'normal', ditherStep);
+      const carnTailFrame = Math.floor((gs.time + fish.bobOffset) / 0.12) % 4;
+      const carnBaked = getCarnivoreSprite(carnTailFrame, fish.isDying ? 'dying' : 'normal', ditherStep);
       const carnSprite = isFacingLeft ? carnBaked.flipped : carnBaked.normal;
       const drawW = Math.round(carnSprite.width * totalScaleX);
       const drawH = Math.round(carnSprite.height * totalScaleY);
@@ -1844,7 +1845,8 @@ export function renderPixelScene(
       ? (Math.min(3, Math.floor((fish.fadeTimer / CONFIG.fishDeadFadeDuration) * 4)) as 0 | 1 | 2 | 3)
       : 0;
 
-    const baked = getFishSprite(fish.size, state, tailFrame, ditherStep);
+    const fishTime = gs.time + fish.bobOffset;
+    const baked = getFishSprite(fish.size, state, tailFrame, ditherStep, fishTime, fish.timeSinceAte);
     const sprite = isFacingLeft ? baked.flipped : baked.normal;
 
     const drawW = Math.round(sprite.width * totalScaleX);
@@ -1896,14 +1898,14 @@ export function renderPixelScene(
     }
   }
 
-  // Render Pets
+  // Render Pets (4-frame swimming cycle)
   for (let i = 0; i < gs.pets.length; i++) {
     const p = gs.pets[i];
     if (p.dead) continue;
     const px = Math.floor(p.x / 2);
     const py = Math.floor(p.y / 2);
     
-    const frameIndex = (Math.floor(gs.time / 0.17) % 2) as 0 | 1;
+    const frameIndex = Math.floor(gs.time / 0.12) % 4;
     const sprite = getSpeciesSprite(p.level, frameIndex);
     const isFacingLeft = p.facing < 0;
     
@@ -2497,28 +2499,164 @@ export function renderPixelScene(
   }
 
   // --------------------------------------------------------------------------
-  // TANK STATUS
+  // LEVEL GOAL & 3-4 MINUTE PACING PROGRESS BAR IN HUD
+  // Tracks time elapsed & goals remaining (egg pieces & funded coins)
+  // --------------------------------------------------------------------------
+  const piecesBought = gs.eggPiecesBought || 0;
+  const eggPrices = [CONFIG.eggPiece1Cost, CONFIG.eggPiece2Cost, CONFIG.eggPiece3Cost];
+  const totalEggCost = eggPrices[0] + eggPrices[1] + eggPrices[2];
+  let fundedValue = 0;
+  for (let p = 0; p < piecesBought; p++) {
+    fundedValue += eggPrices[p];
+  }
+  if (piecesBought < 3) {
+    const nextEggCost = eggPrices[piecesBought];
+    const moneyContribution = Math.min(nextEggCost, Math.max(0, Math.floor(gs.money)));
+    fundedValue += moneyContribution;
+  }
+  const goalRatio = game.mode === 'sandbox' ? 1.0 : Math.max(0, Math.min(1.0, fundedValue / totalEggCost));
+
+  // Target Pacing: 3.5 minutes (210s) to reinforce fast 3-4 min loop
+  const targetSeconds = 210;
+  const elapsedSecs = gs.levelElapsedTime || 0;
+  const timeRatio = Math.max(0, Math.min(1.0, elapsedSecs / targetSeconds));
+  const elMin = Math.floor(elapsedSecs / 60);
+  const elSec = Math.floor(elapsedSecs % 60);
+  const timeStr = `${elMin}:${elSec < 10 ? '0' : ''}${elSec}`;
+  const isAheadOfPace = goalRatio >= timeRatio;
+
+  // Visual Progress Bar Channel along bottom rim of HUD (x: 58 to 368, y: 25 to 28)
+  const barX = 58;
+  const barY = 25;
+  const barW = 310;
+  const barH = 4;
+
+  // Dark recessed carved groove
+  ctx.fillStyle = '#1c1917';
+  ctx.fillRect(barX, barY - 1, barW, barH + 2);
+  ctx.fillStyle = '#0f0f12';
+  ctx.fillRect(barX + 1, barY, barW - 2, barH);
+
+  // Fill calculation
+  const fillW = Math.max(0, Math.min(barW - 2, Math.round((barW - 2) * goalRatio)));
+  if (fillW > 0) {
+    // Gradient fill: emerald green to gold/amber
+    const fillCol = piecesBought >= 3 ? '#fbbf24' : (goalRatio > 0.6 ? '#f59e0b' : '#10b981');
+    ctx.fillStyle = fillCol;
+    ctx.fillRect(barX + 1, barY, fillW, barH);
+
+    // 1px top highlight
+    ctx.fillStyle = piecesBought >= 3 ? '#fef08a' : (goalRatio > 0.6 ? '#fde047' : '#34d399');
+    ctx.fillRect(barX + 1, barY, fillW, 1);
+
+    // Animated traveling shimmer glint
+    const glintProgress = (gs.time * 0.8) % 1.0;
+    const glintX = Math.round(barX + 1 + glintProgress * (fillW - 2));
+    if (glintX >= barX + 1 && glintX <= barX + fillW - 2) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(glintX, barY, 2, barH);
+    }
+  }
+
+  // Egg Milestone Pips at each piece's cumulative threshold
+  if (game.mode !== 'sandbox') {
+    const m1Ratio = eggPrices[0] / totalEggCost;
+    const m2Ratio = (eggPrices[0] + eggPrices[1]) / totalEggCost;
+    const m1X = Math.round(barX + 1 + (barW - 2) * m1Ratio);
+    const m2X = Math.round(barX + 1 + (barW - 2) * m2Ratio);
+    const m3X = barX + barW - 2;
+
+    // Milestone 1 Notch & Pip
+    ctx.fillStyle = '#1c1917';
+    ctx.fillRect(m1X, barY - 1, 1, barH + 2);
+    ctx.fillStyle = piecesBought >= 1 ? '#38bdf8' : '#78716c';
+    ctx.fillRect(m1X - 1, barY - 2, 3, 2);
+
+    // Milestone 2 Notch & Pip
+    ctx.fillStyle = '#1c1917';
+    ctx.fillRect(m2X, barY - 1, 1, barH + 2);
+    ctx.fillStyle = piecesBought >= 2 ? '#a855f7' : '#78716c';
+    ctx.fillRect(m2X - 1, barY - 2, 3, 2);
+
+    // Milestone 3 (Final Egg Complete) Pip
+    ctx.fillStyle = piecesBought >= 3 ? '#f59e0b' : '#78716c';
+    ctx.fillRect(m3X - 2, barY - 2, 3, 2);
+
+    // 3-4 Minute Pace Needle (marking expected time progress)
+    const paceX = Math.min(barX + barW - 3, Math.round(barX + 1 + (barW - 2) * timeRatio));
+    ctx.fillStyle = isAheadOfPace ? '#22c55e' : '#f97316';
+    ctx.fillRect(paceX - 1, barY + barH - 1, 3, 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(paceX, barY + barH, 1, 1);
+  }
+
+  // --------------------------------------------------------------------------
+  // TANK STATUS & TIME PACE READOUT (x: 314 to 368)
   // --------------------------------------------------------------------------
   const normalFishAlive = gs.fish.filter((f) => !f.isCarnivore && !f.dead).length;
-  drawFittedText(ctx, `P:${gs.food.length}/${gs.stats.foodLimit}`, 318, 5, {
-    w: 78,
-    h: 8,
-    maxLines: 1,
-    color: 'cream',
-  });
-  drawFittedText(ctx, `F:${normalFishAlive}`, 318, 14, {
-    w: 78,
-    h: 8,
-    maxLines: 1,
-    color: 'cream',
-  });
 
-  if (gs.aliens.length > 0) {
-    drawFittedText(ctx, '!ALERT!', 318, 22, {
-      w: 78,
-      h: 8,
+  if (game.mode !== 'sandbox') {
+    // Line 1: Timer & Target (M:SS / 3:30)
+    const paceColor: PaletteKey = isAheadOfPace ? 'glow' : 'cream';
+    drawFittedText(ctx, `⏱${timeStr}/3:30`, 315, 3, {
+      w: 54,
+      h: 7,
       maxLines: 1,
-      color: 'coral',
+      align: 'left',
+      color: paceColor,
+    });
+
+    // Line 2: Goal progress percentage & egg status
+    const goalText = piecesBought >= 3 ? 'EGG READY!' : `GOAL ${Math.round(goalRatio * 100)}%`;
+    const goalColor: PaletteKey = piecesBought >= 3 ? 'gold' : (isAheadOfPace ? 'sand' : 'cream');
+    drawFittedText(ctx, goalText, 315, 10, {
+      w: 54,
+      h: 7,
+      maxLines: 1,
+      align: 'left',
+      color: goalColor,
+    });
+
+    // Line 3: Fish & Pellets counts, or alert
+    if (gs.aliens.length > 0) {
+      drawFittedText(ctx, '!ALERT!', 315, 17, {
+        w: 54,
+        h: 7,
+        maxLines: 1,
+        align: 'left',
+        color: 'coral',
+      });
+    } else {
+      drawFittedText(ctx, `P:${gs.food.length}/${gs.stats.foodLimit} F:${normalFishAlive}`, 315, 17, {
+        w: 54,
+        h: 7,
+        maxLines: 1,
+        align: 'left',
+        color: 'sandShade',
+      });
+    }
+  } else {
+    // Sandbox Mode stats
+    drawFittedText(ctx, `⏱ ${timeStr}`, 315, 4, {
+      w: 54,
+      h: 7,
+      maxLines: 1,
+      align: 'left',
+      color: 'gold',
+    });
+    drawFittedText(ctx, `P:${gs.food.length}/${gs.stats.foodLimit}`, 315, 11, {
+      w: 54,
+      h: 7,
+      maxLines: 1,
+      align: 'left',
+      color: 'cream',
+    });
+    drawFittedText(ctx, `F:${normalFishAlive}`, 315, 18, {
+      w: 54,
+      h: 7,
+      maxLines: 1,
+      align: 'left',
+      color: 'cream',
     });
   }
 
@@ -2620,7 +2758,7 @@ export function renderPixelScene(
 
     if (t >= 1.0) {
       // 3. Species sprite bursts out (1.0s to 2.0s)
-      const frameIndex = (Math.floor(t / 0.17) % 2) as 0 | 1;
+      const frameIndex = Math.floor(t / 0.12) % 4;
       const sprite = getSpeciesSprite(gs.level || 1, frameIndex);
       if (sprite) {
         const hatchAge = t - 1.0;
@@ -2741,42 +2879,367 @@ export function renderPixelScene(
   }
 
   // --------------------------------------------------------------------------
-  // 11. 0.4s PIXEL DISSOLVE TRANSITION (4x4 blocks revealed in random order)
+  // 11. AQUATIC LIFE TRANSITION (School of fishes swimming across with bubbles)
   // --------------------------------------------------------------------------
   if (gs.transitionTimer && gs.transitionTimer > 0) {
-    renderDissolveTransition(ctx, gs.transitionTimer);
+    const transDuration = 1.0;
+    const transProgress = Math.max(0, Math.min(1, 1 - (gs.transitionTimer / transDuration)));
+    if (transProgress < 0.5 && snapshotCanvas) {
+      ctx.drawImage(snapshotCanvas, 0, 0);
+    }
+    renderAquaticTransition(ctx, gs.transitionTimer, gs.time, transDuration);
   }
 
 }
 
 // ============================================================================
-// 0.4s PIXEL DISSOLVE TRANSITION (4x4 art px blocks revealed in random order)
+// AQUATIC LIFE SCREEN TRANSITION (School of Fish & Swirling Bubbles Wave Wipe)
 // ============================================================================
-const DISSOLVE_BLOCKS: { x: number; y: number }[] = [];
-for (let by = 0; by < 75; by++) {
-  for (let bx = 0; bx < 100; bx++) {
-    DISSOLVE_BLOCKS.push({ x: bx * 4, y: by * 4 });
-  }
-}
-let dissolveSeed = 987654321;
-function dissolveRand() {
-  dissolveSeed = (dissolveSeed * 1664525 + 1013904223) % 4294967296;
-  return dissolveSeed / 4294967296;
-}
-for (let i = DISSOLVE_BLOCKS.length - 1; i > 0; i--) {
-  const j = Math.floor(dissolveRand() * (i + 1));
-  const temp = DISSOLVE_BLOCKS[i];
-  DISSOLVE_BLOCKS[i] = DISSOLVE_BLOCKS[j];
-  DISSOLVE_BLOCKS[j] = temp;
+interface SchoolFishDef {
+  dx: number;
+  dy: number;
+  type: 'gold' | 'cyan' | 'green' | 'silver' | 'magenta' | 'fry';
+  speedMult: number;
+  bobPhase: number;
 }
 
-function renderDissolveTransition(ctx: CanvasRenderingContext2D, timer: number) {
-  const progress = Math.max(0, Math.min(1, timer / 0.4));
-  const count = Math.floor(progress * DISSOLVE_BLOCKS.length);
-  ctx.fillStyle = PALETTE.outline;
-  for (let i = 0; i < count; i++) {
-    const b = DISSOLVE_BLOCKS[i];
-    ctx.fillRect(b.x, b.y, 4, 4);
+const SCHOOL_FISH: SchoolFishDef[] = [
+  // Front runners / scouts
+  { dx: 60, dy: 130, type: 'cyan', speedMult: 1.15, bobPhase: 0.1 },
+  { dx: 50, dy: 85, type: 'gold', speedMult: 1.12, bobPhase: 0.8 },
+  { dx: 55, dy: 180, type: 'silver', speedMult: 1.14, bobPhase: 1.4 },
+  { dx: 40, dy: 60, type: 'green', speedMult: 1.1, bobPhase: 2.1 },
+  { dx: 45, dy: 220, type: 'magenta', speedMult: 1.08, bobPhase: 2.7 },
+  // Main flock
+  { dx: 20, dy: 140, type: 'gold', speedMult: 1.05, bobPhase: 3.2 },
+  { dx: 25, dy: 105, type: 'cyan', speedMult: 1.06, bobPhase: 0.5 },
+  { dx: 15, dy: 165, type: 'green', speedMult: 1.04, bobPhase: 1.9 },
+  { dx: 5, dy: 80, type: 'magenta', speedMult: 1.02, bobPhase: 4.1 },
+  { dx: 10, dy: 210, type: 'silver', speedMult: 1.03, bobPhase: 3.8 },
+  { dx: -5, dy: 125, type: 'gold', speedMult: 1.0, bobPhase: 0.9 },
+  { dx: -10, dy: 50, type: 'cyan', speedMult: 0.98, bobPhase: 2.4 },
+  { dx: 0, dy: 250, type: 'green', speedMult: 1.01, bobPhase: 5.0 },
+  { dx: -15, dy: 175, type: 'silver', speedMult: 0.99, bobPhase: 1.6 },
+  // Trailing swarm & small fry
+  { dx: -30, dy: 110, type: 'fry', speedMult: 0.95, bobPhase: 0.3 },
+  { dx: -35, dy: 150, type: 'fry', speedMult: 0.94, bobPhase: 1.7 },
+  { dx: -25, dy: 90, type: 'cyan', speedMult: 0.96, bobPhase: 3.5 },
+  { dx: -40, dy: 70, type: 'gold', speedMult: 0.92, bobPhase: 4.7 },
+  { dx: -45, dy: 200, type: 'magenta', speedMult: 0.91, bobPhase: 2.2 },
+  { dx: -50, dy: 135, type: 'silver', speedMult: 0.9, bobPhase: 3.9 },
+  { dx: -55, dy: 170, type: 'fry', speedMult: 0.88, bobPhase: 5.3 },
+  { dx: -60, dy: 230, type: 'green', speedMult: 0.87, bobPhase: 0.7 },
+  { dx: -65, dy: 45, type: 'fry', speedMult: 0.86, bobPhase: 2.9 },
+  { dx: -70, dy: 120, type: 'cyan', speedMult: 0.85, bobPhase: 4.3 },
+  { dx: -80, dy: 160, type: 'gold', speedMult: 0.83, bobPhase: 1.2 },
+  { dx: -85, dy: 85, type: 'fry', speedMult: 0.82, bobPhase: 3.1 },
+  { dx: -95, dy: 195, type: 'silver', speedMult: 0.8, bobPhase: 4.8 },
+  { dx: -105, dy: 140, type: 'fry', speedMult: 0.78, bobPhase: 2.0 },
+];
+
+interface TransitionBubbleDef {
+  dx: number;
+  dy: number;
+  r: number;
+  speedMult: number;
+  wobble: number;
+}
+
+const TRANSITION_BUBBLES: TransitionBubbleDef[] = [
+  { dx: 80, dy: 120, r: 3, speedMult: 1.18, wobble: 1.0 },
+  { dx: 65, dy: 80, r: 4, speedMult: 1.15, wobble: 1.5 },
+  { dx: 70, dy: 170, r: 2, speedMult: 1.16, wobble: 2.0 },
+  { dx: 45, dy: 140, r: 5, speedMult: 1.1, wobble: 0.8 },
+  { dx: 55, dy: 230, r: 3, speedMult: 1.12, wobble: 2.5 },
+  { dx: 30, dy: 50, r: 4, speedMult: 1.08, wobble: 3.1 },
+  { dx: 35, dy: 110, r: 6, speedMult: 1.07, wobble: 1.2 },
+  { dx: 25, dy: 190, r: 3, speedMult: 1.05, wobble: 2.2 },
+  { dx: 15, dy: 75, r: 4, speedMult: 1.03, wobble: 4.0 },
+  { dx: 5, dy: 155, r: 6, speedMult: 1.02, wobble: 0.7 },
+  { dx: 10, dy: 240, r: 3, speedMult: 1.01, wobble: 1.9 },
+  { dx: -10, dy: 130, r: 5, speedMult: 0.98, wobble: 3.3 },
+  { dx: -5, dy: 95, r: 4, speedMult: 0.99, wobble: 2.1 },
+  { dx: -20, dy: 215, r: 6, speedMult: 0.95, wobble: 1.4 },
+  { dx: -15, dy: 40, r: 3, speedMult: 0.97, wobble: 4.2 },
+  { dx: -35, dy: 165, r: 4, speedMult: 0.93, wobble: 2.8 },
+  { dx: -30, dy: 115, r: 5, speedMult: 0.94, wobble: 1.6 },
+  { dx: -45, dy: 80, r: 3, speedMult: 0.91, wobble: 3.7 },
+  { dx: -50, dy: 250, r: 4, speedMult: 0.89, wobble: 2.4 },
+  { dx: -55, dy: 145, r: 6, speedMult: 0.88, wobble: 0.9 },
+  { dx: -65, dy: 60, r: 3, speedMult: 0.86, wobble: 4.5 },
+  { dx: -70, dy: 185, r: 4, speedMult: 0.85, wobble: 1.8 },
+  { dx: -75, dy: 125, r: 5, speedMult: 0.84, wobble: 3.2 },
+  { dx: -85, dy: 220, r: 3, speedMult: 0.82, wobble: 2.6 },
+  { dx: -90, dy: 90, r: 4, speedMult: 0.81, wobble: 1.1 },
+  { dx: -100, dy: 160, r: 6, speedMult: 0.79, wobble: 3.8 },
+  { dx: -110, dy: 130, r: 3, speedMult: 0.77, wobble: 2.0 },
+  { dx: -120, dy: 200, r: 4, speedMult: 0.75, wobble: 4.1 },
+  { dx: -130, dy: 70, r: 3, speedMult: 0.73, wobble: 1.5 },
+  { dx: -140, dy: 150, r: 5, speedMult: 0.71, wobble: 2.9 },
+];
+
+function drawPixelTransitionFish(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  type: SchoolFishDef['type'],
+  tailWag: number
+) {
+  const ix = Math.round(x);
+  const iy = Math.round(y);
+
+  if (type === 'fry') {
+    // 6x3 tiny darting baby minnow
+    ctx.fillStyle = '#0b1320';
+    ctx.fillRect(ix - 3, iy, 6, 2);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(ix - 2, iy, 4, 1);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(ix + 1, iy, 1, 1);
+    const tw = tailWag > 0 ? -1 : 1;
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(ix - 4, iy + tw, 1, 1);
+    return;
+  }
+
+  let bodyCol = '#f97316';
+  let bellyCol = '#fef08a';
+  let finCol = '#fbbf24';
+  let stripeCol = '#ef4444';
+
+  if (type === 'cyan') {
+    bodyCol = '#0284c7';
+    bellyCol = '#e0f2fe';
+    finCol = '#38bdf8';
+    stripeCol = '#06b6d4';
+  } else if (type === 'green') {
+    bodyCol = '#059669';
+    bellyCol = '#d1fae5';
+    finCol = '#34d399';
+    stripeCol = '#10b981';
+  } else if (type === 'silver') {
+    bodyCol = '#64748b';
+    bellyCol = '#f8fafc';
+    finCol = '#94a3b8';
+    stripeCol = '#cbd5e1';
+  } else if (type === 'magenta') {
+    bodyCol = '#db2777';
+    bellyCol = '#fce7f3';
+    finCol = '#f472b6';
+    stripeCol = '#ec4899';
+  }
+
+  // Dark outline / silhouette backing
+  ctx.fillStyle = '#0b1320';
+  ctx.fillRect(ix - 5, iy - 2, 10, 5);
+  ctx.fillRect(ix - 6, iy - 1, 12, 3);
+
+  // Main body
+  ctx.fillStyle = bodyCol;
+  ctx.fillRect(ix - 4, iy - 2, 8, 4);
+
+  // Stripe
+  ctx.fillStyle = stripeCol;
+  ctx.fillRect(ix - 3, iy - 1, 7, 2);
+
+  // Belly
+  ctx.fillStyle = bellyCol;
+  ctx.fillRect(ix - 2, iy + 1, 6, 1);
+
+  // Eye (white sclera + black pupil)
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(ix + 3, iy - 1, 2, 2);
+  ctx.fillStyle = '#0b1320';
+  ctx.fillRect(ix + 4, iy - 1, 1, 1);
+
+  // Dorsal fin
+  ctx.fillStyle = finCol;
+  ctx.fillRect(ix - 1, iy - 3, 3, 1);
+
+  // Pectoral fin
+  ctx.fillRect(ix, iy, 2, 1);
+
+  // Caudal tail fin (swings with tailWag)
+  const tw = tailWag > 0 ? 1 : -1;
+  ctx.fillStyle = finCol;
+  ctx.fillRect(ix - 6, iy - 1 + tw, 2, 3);
+  ctx.fillRect(ix - 7, iy - 2 + tw, 1, 5);
+}
+
+function drawPixelTransitionBubble(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  const ix = Math.round(x);
+  const iy = Math.round(y);
+
+  if (r <= 2) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(ix, iy, 2, 2);
+    return;
+  }
+
+  if (r <= 3) {
+    ctx.fillStyle = '#0369a1';
+    ctx.fillRect(ix + 1, iy, 2, 4);
+    ctx.fillRect(ix, iy + 1, 4, 2);
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillRect(ix + 1, iy + 1, 2, 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(ix + 1, iy + 1, 1, 1);
+    return;
+  }
+
+  if (r <= 4) {
+    ctx.fillStyle = '#082f49';
+    ctx.fillRect(ix + 1, iy, 3, 5);
+    ctx.fillRect(ix, iy + 1, 5, 3);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(ix + 1, iy + 1, 3, 3);
+    ctx.fillStyle = '#e0f2fe';
+    ctx.fillRect(ix + 1, iy + 1, 1, 1);
+    ctx.fillRect(ix + 2, iy + 1, 1, 1);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(ix + 1, iy + 1, 1, 1);
+    return;
+  }
+
+  // 6px+ large bubble
+  ctx.fillStyle = '#082f49';
+  ctx.fillRect(ix + 2, iy, 4, 8);
+  ctx.fillRect(ix + 1, iy + 1, 6, 6);
+  ctx.fillRect(ix, iy + 2, 8, 4);
+
+  // Cyan inner fill
+  ctx.fillStyle = 'rgba(14, 165, 233, 0.75)';
+  ctx.fillRect(ix + 2, iy + 1, 4, 6);
+  ctx.fillRect(ix + 1, iy + 2, 6, 4);
+
+  // Specular shine
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(ix + 2, iy + 1, 2, 2);
+  ctx.fillRect(ix + 1, iy + 2, 1, 1);
+  ctx.fillStyle = '#e0f2fe';
+  ctx.fillRect(ix + 4, iy + 5, 2, 1);
+}
+
+let snapshotCanvas: HTMLCanvasElement | null = null;
+
+export function captureTransitionSnapshot(sourceCanvas: HTMLCanvasElement | null) {
+  if (typeof document === 'undefined' || !sourceCanvas) return;
+  if (!snapshotCanvas) {
+    snapshotCanvas = document.createElement('canvas');
+    snapshotCanvas.width = 400;
+    snapshotCanvas.height = 300;
+  }
+  const sCtx = snapshotCanvas.getContext('2d');
+  if (sCtx) {
+    sCtx.imageSmoothingEnabled = false;
+    sCtx.clearRect(0, 0, 400, 300);
+    sCtx.drawImage(sourceCanvas, 0, 0, 400, 300);
+  }
+}
+
+export function renderAquaticTransition(
+  ctx: CanvasRenderingContext2D,
+  timer: number,
+  time: number = 0,
+  maxDuration: number = 1.0
+) {
+  const progress = Math.max(0, Math.min(1, 1 - (timer / maxDuration)));
+
+  // Smooth sinusoidal ease-in-out S-curve
+  const ease = 0.5 - 0.5 * Math.cos(progress * Math.PI);
+
+  // Front edge sweeps across in phase 1 (0.0 to 0.50): completely covers the screen by p=0.48
+  const frontProgress = Math.min(1, progress / 0.5);
+  const frontEase = 0.5 - 0.5 * Math.cos(frontProgress * Math.PI);
+  const xFront = -60 + frontEase * 530; // from -60 to 470
+
+  // Back edge sweeps across in phase 2 (0.48 to 1.0): reveals the new screen
+  const backProgress = progress < 0.48 ? 0 : Math.min(1, (progress - 0.48) / 0.52);
+  const backEase = 0.5 - 0.5 * Math.cos(backProgress * Math.PI);
+  const xBack = -60 + backEase * 530; // stays at -60 until p=0.48, then reaches 470
+
+  // 1. SOLID 100% OPAQUE DEEP OCEAN WAVE SLICES
+  ctx.save();
+  for (let y = 0; y < 300; y += 2) {
+    const waveFront = Math.round(Math.sin(y * 0.05 + progress * 8) * 9 + Math.cos(y * 0.1) * 4);
+    const waveBack = Math.round(Math.sin(y * 0.05 + progress * 8) * 9 + Math.cos(y * 0.1) * 4);
+
+    const left = Math.max(0, Math.min(400, Math.round(xBack + waveBack)));
+    const right = Math.max(0, Math.min(400, Math.round(xFront + waveFront)));
+
+    if (right > left) {
+      // Solid opaque deep midnight ocean water (100% OPAQUE retro navy, hides old/new screen completely)
+      ctx.fillStyle = '#061b33';
+      ctx.fillRect(left, y, right - left, 2);
+
+      // Interior marine depth shading
+      if ((y + Math.floor(progress * 30)) % 16 === 0) {
+        ctx.fillStyle = '#0c385c';
+        ctx.fillRect(left + 6, y, Math.max(0, right - left - 12), 2);
+      }
+
+      // Trailing wave foam & spray (left edge)
+      if (left > 0 && left < 400) {
+        ctx.fillStyle = '#ffffff'; // White foam crest
+        ctx.fillRect(left, y, 2, 2);
+        ctx.fillStyle = '#38bdf8'; // Sky cyan rim
+        ctx.fillRect(left + 2, y, 2, 2);
+        ctx.fillStyle = '#0284c7'; // Turquoise
+        ctx.fillRect(left + 4, y, 3, 2);
+      }
+
+      // Leading wave crest & white foam (right edge)
+      if (right > 0 && right < 400) {
+        ctx.fillStyle = '#0284c7'; // Turquoise depth
+        ctx.fillRect(right - 7, y, 3, 2);
+        ctx.fillStyle = '#38bdf8'; // Sky cyan
+        ctx.fillRect(right - 4, y, 2, 2);
+        ctx.fillStyle = '#ffffff'; // Pure white foaming crest
+        ctx.fillRect(right - 2, y, 2, 2);
+
+        // Splashing seafoam spray droplets ahead of wave
+        if ((y + Math.floor(progress * 24)) % 12 === 0 && right < 396) {
+          ctx.fillStyle = '#bae6fd';
+          ctx.fillRect(right + 2, y, 2, 2);
+        }
+      }
+    }
+  }
+  ctx.restore();
+
+  // Swimming sweep center follows the active wave
+  const sweepX = -60 + ease * 520;
+
+  // 2. Swirling Shimmering Bubbles rising naturally
+  for (let i = 0; i < TRANSITION_BUBBLES.length; i++) {
+    const b = TRANSITION_BUBBLES[i];
+    const bx = sweepX + b.dx * b.speedMult + Math.sin(progress * 10 + b.wobble) * 5;
+    const by = b.dy - ease * 46 + Math.sin(progress * 14 + b.wobble) * 5;
+    if (bx >= -10 && bx <= 410 && by >= 10 && by <= 310) {
+      drawPixelTransitionBubble(ctx, bx, by, b.r);
+
+      // Sparkle burst when bubbles reach the surface (y <= 36)
+      if (by <= 36 && (i % 2 === 0)) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(Math.round(bx), Math.round(by), 1, 1);
+        ctx.fillStyle = '#bae6fd';
+        ctx.fillRect(Math.round(bx - 1), Math.round(by), 1, 1);
+        ctx.fillRect(Math.round(bx + 1), Math.round(by), 1, 1);
+      }
+    }
+  }
+
+  // 3. School of Fishes swimming actively across inside the opaque ocean!
+  for (let i = 0; i < SCHOOL_FISH.length; i++) {
+    const f = SCHOOL_FISH[i];
+    const fx = sweepX + f.dx * f.speedMult;
+    const waveY = Math.sin(ease * Math.PI * 2 + f.bobPhase) * 7;
+    const fy = f.dy + waveY;
+    const tailWag = Math.sin((time || progress * 6) * 32 + f.bobPhase * 4);
+
+    if (fx >= -20 && fx <= 420 && fy >= -10 && fy <= 310) {
+      drawPixelTransitionFish(ctx, fx, fy, f.type, tailWag);
+    }
   }
 }
 
@@ -3079,9 +3542,9 @@ function drawRewardFish(
   const speciesList = SPECIES_SPRITES[level - 1];
   if (!speciesList) return;
 
-  // Tail animation: swap frames every 0.17s
-  const frameIndex = Math.floor(time / 0.17) % 2;
-  const sprite = speciesList[frameIndex];
+  // Tail animation: 4-frame cycle every 0.12s
+  const frameIndex = Math.floor(time / 0.12) % 4;
+  const sprite = speciesList[frameIndex % speciesList.length];
 
   if (isCompleted) {
     const isNight = level >= 6;
@@ -4345,23 +4808,26 @@ function drawSettingsScreen(ctx: CanvasRenderingContext2D, gs: GameState) {
   const my = Math.floor(gs.mousePos.y / 2);
   const isMouseDown = gs.mousePos.isMouseDown ?? false;
 
+  const soundOn = (game.audio as any).soundEnabled !== false;
+  const musicOn = (game.audio as any).musicEnabled !== false;
+  const soundText = `SOUND: ${soundOn ? 'ON' : 'OFF'}`;
+  const musicText = `MUSIC: ${musicOn ? 'ON' : 'OFF'}`;
+
   const shakeText = `SHAKE: ${gs.screenShakeEnabled !== false ? 'ON' : 'OFF'}`;
-  const waterFxText = `WATER: ${gs.waterFxHigh !== false ? 'HIGH' : 'LOW'}`;
   const partText = `PARTICLES: ${gs.particlesEnabled !== false ? 'ON' : 'OFF'}`;
   const fpsText = `FPS: ${gs.fpsCap30 ? '30' : '60'}`;
-  const pwrText = `POWER: ${gs.lowPowerMode ? 'SAVER' : 'NORM'}`;
 
-  // Column 1: Graphics / General
-  drawFittedText(ctx, t('settings.graphics'), 85, 72, { w: 100, h: 10, align: 'center', color: 'gold', fonts: ['small'] });
-  drawSharedButton(ctx, 80, 84, 110, 20, shakeText, mx, my, isMouseDown, 'outline', undefined, false, 0);
-  drawSharedButton(ctx, 80, 108, 110, 20, waterFxText, mx, my, isMouseDown, 'outline', undefined, false, 0);
+  // Column 1: Audio & Controls
+  drawFittedText(ctx, 'AUDIO & DISPLAY', 85, 72, { w: 100, h: 10, align: 'center', color: 'gold', fonts: ['small'] });
+  drawSharedButton(ctx, 80, 84, 110, 20, soundText, mx, my, isMouseDown, soundOn ? 'glow' : 'outline', undefined, false, 0);
+  drawSharedButton(ctx, 80, 108, 110, 20, musicText, mx, my, isMouseDown, musicOn ? 'glow' : 'outline', undefined, false, 0);
   drawSharedButton(ctx, 80, 132, 110, 20, 'FULLSCREEN', mx, my, isMouseDown, 'outline', undefined, false, 0);
 
-  // Column 2: Optimization / Performance
+  // Column 2: Graphics / Optimization
   drawFittedText(ctx, t('settings.optimization'), 215, 72, { w: 100, h: 10, align: 'center', color: 'gold', fonts: ['small'] });
-  drawSharedButton(ctx, 210, 84, 110, 20, partText, mx, my, isMouseDown, 'outline', undefined, false, 0);
-  drawSharedButton(ctx, 210, 108, 110, 20, fpsText, mx, my, isMouseDown, 'outline', undefined, false, 0);
-  drawSharedButton(ctx, 210, 132, 110, 20, pwrText, mx, my, isMouseDown, 'outline', undefined, false, 0);
+  drawSharedButton(ctx, 210, 84, 110, 20, shakeText, mx, my, isMouseDown, gs.screenShakeEnabled !== false ? 'glow' : 'outline', undefined, false, 0);
+  drawSharedButton(ctx, 210, 108, 110, 20, partText, mx, my, isMouseDown, gs.particlesEnabled !== false ? 'glow' : 'outline', undefined, false, 0);
+  drawSharedButton(ctx, 210, 132, 110, 20, fpsText, mx, my, isMouseDown, 'outline', undefined, false, 0);
 
   // Bottom buttons
   drawSharedButton(ctx, 80, 158, 110, 22, t('settings.resetData'), mx, my, isMouseDown, 'coral', undefined, false, 0);

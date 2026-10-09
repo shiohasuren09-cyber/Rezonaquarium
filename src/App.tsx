@@ -5,7 +5,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { PALETTE, SPRITES, drawBitmapText, type PaletteKey } from './pixelEngine.ts';
-import { renderPixelScene, invalidateCachedBackdrop, profileAudit } from './pixelRenderer.ts';
+import { renderPixelScene, invalidateCachedBackdrop, profileAudit, captureTransitionSnapshot } from './pixelRenderer.ts';
 import { initializeInput, shutdownInput, drainActions, onUnlock, input } from './inputModule.ts';
 import { t, MULTI_TRANSLATIONS, fitText, setLanguage, getLanguage, type Language } from './textEngine.ts';
 import {
@@ -13,6 +13,8 @@ import {
   resumeAudioContext,
   setMuffled,
   updateAudioVolumes,
+  toggleSound,
+  toggleMusic,
   game,
   playCoinCollectSound,
   playCoinDropSound,
@@ -68,6 +70,7 @@ export const CONFIG = {
 
   // Loop & Physics
   maxDeltaTime: 0.05, // Delta time clamped to 0.05s
+  transitionDuration: 1.0, // 1.0s substantive opaque aquatic transition (was 0.4s)
 
   // Layout Zones
   hudHeight: 60,       // 60px HUD bar at top (y: 0 - 60)
@@ -87,16 +90,16 @@ export const CONFIG = {
   moneyFlashDuration: 0.3, // Flash red duration on blocked click (0.3s)
 
   // Coin Drops & Collection
-  coinDropIntervalMin: 8,   // Size-1 & Size-2 fish drop coins every 8-12s
-  coinDropIntervalMax: 12,
+  coinDropIntervalMin: 5,   // Size-1 & Size-2 fish drop coins every 5-8s (was 8-12)
+  coinDropIntervalMax: 8,
   coinFallSpeed: 60,        // Fall at 60 px/s
   coinRestY: 530,           // Rest at y=530
   coinBlinkTime: 7,         // Blink from 7s after spawning
   coinLifespan: 9,          // Vanish at 9s after spawning
   coinClickRadius: 38,      // Mobile-sized 38px touch radius for effortless coin collecting
-  coinSilverValue: 15,      // Size-1 fish silver coin worth 15
-  coinGoldValue: 35,        // Size-2 fish gold coin worth 35
-  coinDiamondValue: 200,    // Gargo & Carnivore diamond coin worth 200
+  coinSilverValue: 25,      // Size-1 fish silver coin worth 25 (was 15)
+  coinGoldValue: 60,        // Size-2 fish gold coin worth 60 (was 35)
+  coinDiamondValue: 300,    // Gargo & Carnivore diamond coin worth 300 (was 200)
   coinCollectTweenDuration: 0.25, // Tween to HUD in 0.25s
   coinHudTargetX: 30,       // HUD coin icon position
   coinHudTargetY: 30,
@@ -121,8 +124,8 @@ export const CONFIG = {
   fishDeadTargetY: 70, // Target y when dead
   fishDeadFadeDuration: 2, // Fades over 2s
   fishEatDistance: 14, // Eats when mouth is within 14px of pellet
-  fishGrowthPointsSize1: 4, // Grow to size 1 (38px) at 4 points
-  fishGrowthPointsSize2: 10, // Grow to size 2 (50px) at 10 points
+  fishGrowthPointsSize1: 3, // Grow to size 1 (38px) at 3 points (was 4)
+  fishGrowthPointsSize2: 8,  // Grow to size 2 (50px) at 8 points (was 10)
   fishGrowthPopDuration: 0.25, // Scale pop animation duration (0.25s)
 
   // Fish Dimensions (Body width/length)
@@ -134,21 +137,21 @@ export const CONFIG = {
   fishSize2Height: 30,
 
   // Carnivore Parameters
-  carnivoreCost: 1000,          // Cost 1000
+  carnivoreCost: 600,          // Cost 600 (was 1000)
   carnivoreMaxCount: 2,         // Max 2
   carnivoreLength: 60,          // 60px purple fish
   carnivoreHeight: 34,
   carnivoreHungryTime: 20,      // Hungry after 20s without eating
   carnivoreStarveTime: 35,      // Dies after 35s without eating
   carnivoreDetectionRadius: 250,// Hunts size-0 fish within 250px
-  carnivoreDiamondInterval: 15, // Drops diamond worth 200 every 15s while fed
+  carnivoreDiamondInterval: 12, // Drops diamond worth 300 every 12s while fed (was 15)
   carnivoreSpeed: 45,
   carnivoreChaseSpeed: 80,
 
   // Snail Parameters
-  snailCost: 250,               // Cost 250
+  snailCost: 150,               // Cost 150 (was 250)
   snailMaxCount: 1,             // Max 1
-  snailSpeed: 35,               // Crawls at 35 px/s along sand
+  snailSpeed: 40,               // Crawls at 40 px/s along sand (was 35)
   snailCollectRadius: 18,       // Collects coin on contact within 18px
   snailY: 562,                  // Floor position on sand
 
@@ -166,14 +169,14 @@ export const CONFIG = {
   alienDeathParticles: 20,  // Explosion of 20 particles on death
 
   // Weapon Upgrade Parameters
-  weaponUpgrade1Cost: 400,  // Level 1: 400 coins -> 2 dmg
-  weaponUpgrade2Cost: 800,  // Level 2: 800 coins -> 4 dmg
+  weaponUpgrade1Cost: 240,  // Level 1: 240 coins -> 2 dmg (was 400)
+  weaponUpgrade2Cost: 480,  // Level 2: 480 coins -> 4 dmg (was 800)
   weaponBeamDuration: 0.08, // 0.08s laser beam line duration
 
   // Egg Pieces & Level Progression
-  eggPiece1Cost: 500,       // Egg piece 1: 500
-  eggPiece2Cost: 750,       // Egg piece 2: 750
-  eggPiece3Cost: 1000,      // Egg piece 3: 1000
+  eggPiece1Cost: 300,       // Egg piece 1: 300 (was 500)
+  eggPiece2Cost: 450,       // Egg piece 2: 450 (was 750)
+  eggPiece3Cost: 600,       // Egg piece 3: 600 (was 1000)
   eggHatchDuration: 2.0,    // 2s egg hatch animation
   startMoneyNextLevel: 300, // Next level start money: 300
   alienHpScalePerLevel: 1.5,// Alien HP +50% per level
@@ -217,7 +220,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Guppy',
       desc: 'Spawns a guppy that drops coins',
-      prices: [100],
+      prices: [60],
       maxLevel: null,
       requires: null,
       effectId: 'buyFish',
@@ -228,7 +231,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Carnivore',
       desc: 'Eats baby guppies, drops diamonds',
-      prices: [1000],
+      prices: [600],
       maxLevel: 2,
       requires: null,
       effectId: 'carnivore',
@@ -239,7 +242,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Stinky Snail',
       desc: 'Crawls on sand to gather coins',
-      prices: [250],
+      prices: [150],
       maxLevel: 1,
       requires: null,
       effectId: 'snail',
@@ -250,7 +253,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Pip',
       desc: 'Drops silver coins periodically',
-      prices: [250],
+      prices: [150],
       maxLevel: 1,
       requires: null,
       effectId: 'pet_pip',
@@ -261,7 +264,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Marina',
       desc: 'Walks to collect coins on sand',
-      prices: [300],
+      prices: [180],
       maxLevel: 1,
       requires: null,
       effectId: 'pet_marina',
@@ -272,7 +275,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Dot',
       desc: 'Drops free 1pt food pellets',
-      prices: [350],
+      prices: [200],
       maxLevel: 1,
       requires: null,
       effectId: 'pet_dot',
@@ -283,7 +286,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Bumble',
       desc: 'Slows Gargo speed nearby',
-      prices: [400],
+      prices: [240],
       maxLevel: 1,
       requires: null,
       effectId: 'pet_bumble',
@@ -294,7 +297,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Sol',
       desc: 'Speeds up fish coin drops',
-      prices: [450],
+      prices: [270],
       maxLevel: 1,
       requires: null,
       effectId: 'pet_sol',
@@ -305,7 +308,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Lumi',
       desc: 'Drops gold coins periodically',
-      prices: [500],
+      prices: [300],
       maxLevel: 1,
       requires: null,
       effectId: 'pet_lumi',
@@ -316,7 +319,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Nox',
       desc: 'Swiftly vacuums up coins',
-      prices: [550],
+      prices: [330],
       maxLevel: 1,
       requires: null,
       effectId: 'pet_nox',
@@ -327,7 +330,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Glimmer',
       desc: 'Drops nutritious 2pt food',
-      prices: [600],
+      prices: [360],
       maxLevel: 1,
       requires: null,
       effectId: 'pet_glimmer',
@@ -338,7 +341,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Veil',
       desc: 'Shields nearby fish from Gargo',
-      prices: [700],
+      prices: [420],
       maxLevel: 1,
       requires: null,
       effectId: 'pet_veil',
@@ -349,7 +352,7 @@ export const CONFIG = {
       category: 'pets',
       name: 'Aurora',
       desc: 'Drops diamonds & boosts coin drops',
-      prices: [900],
+      prices: [500],
       maxLevel: 1,
       requires: null,
       effectId: 'pet_aurora',
@@ -362,7 +365,7 @@ export const CONFIG = {
       category: 'upgrades',
       name: 'Food Limit',
       desc: 'Increases max pellets in water',
-      prices: [200, 300, 400, 500],
+      prices: [120, 180, 240, 300],
       maxLevel: 4,
       requires: null,
       effectId: 'foodLimit',
@@ -373,7 +376,7 @@ export const CONFIG = {
       category: 'upgrades',
       name: 'Food Quality',
       desc: 'Higher grade pellets for fish',
-      prices: [300, 600],
+      prices: [180, 360],
       maxLevel: 2,
       requires: null,
       effectId: 'foodQuality',
@@ -384,7 +387,7 @@ export const CONFIG = {
       category: 'upgrades',
       name: 'Laser Weapon',
       desc: 'Upgrades click laser damage',
-      prices: [400, 800],
+      prices: [240, 480],
       maxLevel: 2,
       requires: null,
       effectId: 'weapon',
@@ -397,7 +400,7 @@ export const CONFIG = {
       category: 'eggs',
       name: 'Egg Piece 1',
       desc: 'First mysterious egg piece',
-      prices: [500],
+      prices: [300],
       maxLevel: 1,
       requires: null,
       effectId: 'eggPiece1',
@@ -408,7 +411,7 @@ export const CONFIG = {
       category: 'eggs',
       name: 'Egg Piece 2',
       desc: 'Second mysterious egg piece',
-      prices: [750],
+      prices: [450],
       maxLevel: 1,
       requires: { id: 'eggPiece1', level: 1 },
       effectId: 'eggPiece2',
@@ -419,7 +422,7 @@ export const CONFIG = {
       category: 'eggs',
       name: 'Egg Piece 3',
       desc: 'Final piece to hatch the egg',
-      prices: [1000],
+      prices: [600],
       maxLevel: 1,
       requires: { id: 'eggPiece2', level: 1 },
       effectId: 'eggPiece3',
@@ -432,7 +435,7 @@ export const CONFIG = {
       category: 'themes',
       name: 'Frutiger Aero',
       desc: 'Bright, energetic, bubbly tech-inspired theme',
-      prices: [300],
+      prices: [150],
       maxLevel: 1,
       requires: null,
       effectId: 'themeFrutigerAero',
@@ -1947,11 +1950,498 @@ function getTileableWoodPlankDataUrl(): string {
   return canvas.toDataURL();
 }
 
+// ============================================================================
+// PIXEL ART SIDE RAIL PROPS & BEZEL GENERATORS
+// ============================================================================
+
+function getPixelFishingNetDataUrl(): string {
+  if (typeof document === 'undefined') return '';
+  const canvas = document.createElement('canvas');
+  canvas.width = 48;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  // 1. Hanging Rope Top Bar (y = 5 to 9)
+  ctx.fillStyle = '#3e2230';
+  ctx.fillRect(4, 5, 40, 5);
+
+  // Rope strands & twisted coil highlights
+  for (let x = 5; x < 43; x += 4) {
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(x, 6, 2, 3);
+    ctx.fillStyle = '#d97706';
+    ctx.fillRect(x + 1, 6, 1, 2);
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(x + 2, 7, 2, 2);
+  }
+
+  // Wall iron nails on ends
+  ctx.fillStyle = '#1e293b';
+  ctx.fillRect(3, 6, 2, 3);
+  ctx.fillRect(43, 6, 2, 3);
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(3, 6, 1, 1);
+  ctx.fillRect(43, 6, 1, 1);
+
+  // 2. Diamond Mesh Net Twine (y = 9 to 54)
+  ctx.fillStyle = '#854d0e';
+  for (let d = -40; d < 60; d += 6) {
+    for (let y = 10; y < 54; y++) {
+      const xRight = d + y;
+      const xLeft = 48 - (d + y);
+      if (xRight >= 6 && xRight <= 42) {
+        ctx.fillRect(xRight, y, 1, 1);
+      }
+      if (xLeft >= 6 && xLeft <= 42) {
+        ctx.fillRect(xLeft, y, 1, 1);
+      }
+    }
+  }
+
+  // Knots at intersections
+  for (let ky = 12; ky < 54; ky += 6) {
+    for (let kx = 6 + (ky % 12 === 0 ? 0 : 3); kx <= 42; kx += 6) {
+      ctx.fillStyle = '#3e2230';
+      ctx.fillRect(kx - 1, ky - 1, 3, 3);
+      ctx.fillStyle = '#ca8a04';
+      ctx.fillRect(kx, ky, 1, 1);
+    }
+  }
+
+  // Irregular bottom net fringe / weights
+  ctx.fillStyle = '#78350f';
+  for (let fx = 8; fx <= 40; fx += 4) {
+    const fy = 50 + ((fx * 3) % 5);
+    ctx.fillRect(fx, fy, 2, 3);
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(fx, fy, 1, 1);
+  }
+
+  // 3. Three Wooden Cork Floats attached to rope
+  const drawCorkFloat = (cx: number, cy: number, w: number, h: number) => {
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(cx - 1, cy - 1, w + 2, h + 2);
+    ctx.fillStyle = '#b45309';
+    ctx.fillRect(cx, cy, w, h);
+    ctx.fillStyle = '#d97706';
+    ctx.fillRect(cx + 1, cy, w - 2, h - 2);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(cx + 1, cy + 1, 2, h - 3);
+    ctx.fillStyle = '#451a03';
+    ctx.fillRect(cx - 1, cy + Math.floor(h / 2), w + 2, 1);
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(cx + 1, cy + Math.floor(h / 2), 2, 1);
+  };
+
+  drawCorkFloat(10, 7, 7, 12);
+  drawCorkFloat(21, 8, 8, 14);
+  drawCorkFloat(32, 6, 7, 11);
+
+  // 4. Starfish trapped in net (x = 16, y = 44)
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(16, 43, 6, 6);
+  ctx.fillStyle = '#f97316';
+  ctx.fillRect(17, 44, 4, 4);
+  ctx.fillRect(19, 42, 2, 2);
+  ctx.fillRect(15, 44, 2, 2);
+  ctx.fillRect(22, 45, 2, 2);
+  ctx.fillRect(17, 48, 2, 2);
+  ctx.fillRect(20, 48, 2, 2);
+  ctx.fillStyle = '#fef08a';
+  ctx.fillRect(18, 45, 2, 2);
+
+  // 5. Pale sea glass glint (x = 33, y = 48)
+  ctx.fillStyle = '#0284c7';
+  ctx.fillRect(33, 48, 5, 4);
+  ctx.fillStyle = '#38bdf8';
+  ctx.fillRect(34, 48, 3, 3);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(35, 49, 1, 1);
+
+  return canvas.toDataURL();
+}
+
+function getPixelLanternDataUrl(flameFrame: number): string {
+  if (typeof document === 'undefined') return '';
+  const canvas = document.createElement('canvas');
+  canvas.width = 48;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  // 1. Wall Bracket Flange (x = 4 to 8, y = 6 to 22)
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(4, 6, 4, 18);
+  ctx.fillStyle = '#854d0e';
+  ctx.fillRect(5, 7, 2, 16);
+  ctx.fillStyle = '#fde047';
+  ctx.fillRect(5, 8, 2, 2);
+  ctx.fillRect(5, 19, 2, 2);
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(6, 9, 1, 1);
+  ctx.fillRect(6, 20, 1, 1);
+
+  // 2. Forged Arm reaching out (x = 8 to 25, y = 9 to 13)
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(8, 10, 16, 3);
+  ctx.fillStyle = '#854d0e';
+  ctx.fillRect(8, 11, 15, 1);
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(10, 13, 3, 3);
+  ctx.fillRect(12, 15, 3, 3);
+  ctx.fillRect(14, 17, 3, 2);
+
+  // 3. Hanging Chain Loop (x = 22 to 26, y = 12 to 16)
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(22, 12, 4, 5);
+  ctx.clearRect(23, 13, 2, 3);
+  ctx.fillStyle = '#ca8a04';
+  ctx.fillRect(23, 12, 2, 1);
+
+  // 4. Ambient Warm Light Dither
+  for (let gy = 20; gy < 52; gy += 2) {
+    for (let gx = 10; gx < 38; gx += 2) {
+      const dist = Math.hypot(gx - 24, gy - 36);
+      if (dist < 16 && (gx + gy) % 4 === 0) {
+        ctx.fillStyle = dist < 10 ? 'rgba(254, 240, 138, 0.22)' : 'rgba(251, 191, 36, 0.12)';
+        ctx.fillRect(gx, gy, 1, 1);
+      }
+    }
+  }
+
+  // 5. Pagoda Brass Hood / Chimney (x = 16 to 32, y = 16 to 24)
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(16, 17, 16, 8);
+  ctx.fillRect(18, 15, 12, 3);
+  ctx.fillRect(21, 13, 6, 3);
+  ctx.fillStyle = '#854d0e';
+  ctx.fillRect(17, 18, 14, 6);
+  ctx.fillRect(19, 16, 10, 2);
+  ctx.fillRect(22, 14, 4, 2);
+  ctx.fillStyle = '#fde047';
+  ctx.fillRect(22, 14, 2, 1);
+  ctx.fillRect(19, 16, 3, 1);
+  ctx.fillRect(17, 18, 4, 1);
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(20, 21, 2, 2);
+  ctx.fillRect(26, 21, 2, 2);
+
+  // 6. Glass Chamber (x = 16 to 32, y = 24 to 46)
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.2)';
+  ctx.fillRect(18, 24, 12, 22);
+
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(16, 24, 2, 22);
+  ctx.fillRect(30, 24, 2, 22);
+  ctx.fillStyle = '#ca8a04';
+  ctx.fillRect(17, 24, 1, 22);
+  ctx.fillRect(30, 24, 1, 22);
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+  for (let s = 0; s < 12; s++) {
+    ctx.fillRect(20 + s, 26 + s, 1, 1);
+  }
+
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(20, 42, 8, 4);
+  ctx.fillStyle = '#ca8a04';
+  ctx.fillRect(21, 42, 6, 3);
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(23, 40, 2, 3);
+
+  // 7. Animated Pixel Flame (3 frames)
+  const f = flameFrame % 3;
+  if (f === 0) {
+    ctx.fillStyle = '#ea580c';
+    ctx.fillRect(22, 32, 4, 9);
+    ctx.fillRect(23, 30, 2, 3);
+    ctx.fillRect(24, 29, 1, 2);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(22, 34, 4, 6);
+    ctx.fillRect(23, 32, 2, 3);
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(23, 35, 2, 5);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(23, 36, 1, 3);
+  } else if (f === 1) {
+    ctx.fillStyle = '#ea580c';
+    ctx.fillRect(21, 32, 5, 9);
+    ctx.fillRect(22, 29, 2, 4);
+    ctx.fillRect(21, 28, 1, 2);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(22, 33, 3, 7);
+    ctx.fillRect(22, 31, 2, 3);
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(22, 35, 2, 5);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(22, 36, 1, 3);
+  } else {
+    ctx.fillStyle = '#ea580c';
+    ctx.fillRect(22, 33, 5, 8);
+    ctx.fillRect(24, 30, 2, 4);
+    ctx.fillRect(25, 29, 1, 2);
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(23, 34, 3, 6);
+    ctx.fillRect(24, 32, 2, 3);
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(23, 35, 2, 5);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(24, 36, 1, 3);
+  }
+
+  // 8. Lantern Base & Bottom Finial (x = 15 to 33, y = 46 to 55)
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(15, 46, 18, 6);
+  ctx.fillStyle = '#854d0e';
+  ctx.fillRect(16, 47, 16, 4);
+  ctx.fillStyle = '#ca8a04';
+  ctx.fillRect(16, 47, 16, 1);
+  ctx.fillStyle = '#fde047';
+  ctx.fillRect(18, 49, 2, 2);
+  ctx.fillRect(28, 49, 2, 2);
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(22, 52, 4, 4);
+  ctx.fillRect(23, 56, 2, 2);
+  ctx.fillStyle = '#ca8a04';
+  ctx.fillRect(23, 53, 2, 3);
+
+  return canvas.toDataURL();
+}
+
+function getPixelShelfDataUrl(): string {
+  if (typeof document === 'undefined') return '';
+  const canvas = document.createElement('canvas');
+  canvas.width = 56;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  // 1. Carved Wooden Corbel Brackets (y = 44 to 56)
+  const drawCorbel = (bx: number) => {
+    ctx.fillStyle = '#3e2230';
+    ctx.fillRect(bx, 44, 7, 12);
+    ctx.fillStyle = '#a8693a';
+    ctx.fillRect(bx + 1, 44, 5, 10);
+    ctx.fillStyle = '#6b3f2a';
+    ctx.fillRect(bx + 1, 46, 4, 8);
+    ctx.fillStyle = '#fde047';
+    ctx.fillRect(bx + 2, 48, 2, 2);
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(bx + 3, 49, 1, 1);
+  };
+  drawCorbel(9);
+  drawCorbel(39);
+
+  // 2. Thick Carved Shelf Plank (x = 4 to 52, y = 38 to 44)
+  ctx.fillStyle = '#3e2230';
+  ctx.fillRect(4, 38, 48, 7);
+  ctx.fillStyle = '#a8693a';
+  ctx.fillRect(5, 39, 46, 5);
+  ctx.fillStyle = '#e0a368';
+  ctx.fillRect(5, 39, 46, 1);
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(10, 41, 18, 1);
+  ctx.fillRect(32, 42, 14, 1);
+
+  // 3. Potted Aquatic Plant (x = 7 to 23, y = 14 to 38)
+  ctx.fillStyle = '#7c2d12';
+  ctx.fillRect(7, 28, 15, 11);
+  ctx.fillRect(8, 27, 13, 3);
+  ctx.fillStyle = '#c2410c';
+  ctx.fillRect(8, 29, 13, 9);
+  ctx.fillRect(9, 28, 11, 2);
+  ctx.fillStyle = '#ea580c';
+  ctx.fillRect(9, 28, 5, 2);
+  ctx.fillRect(8, 30, 4, 7);
+  ctx.fillStyle = '#7c2d12';
+  ctx.fillRect(17, 30, 3, 8);
+  ctx.fillStyle = '#1c1917';
+  ctx.fillRect(9, 27, 11, 2);
+
+  // Lush Branching Fern / Aquatic Fronds
+  ctx.fillStyle = '#14532d';
+  ctx.fillRect(14, 13, 2, 14);
+  ctx.fillStyle = '#22c55e';
+  ctx.fillRect(12, 15, 5, 2);
+  ctx.fillRect(11, 18, 7, 2);
+  ctx.fillRect(10, 21, 9, 2);
+  ctx.fillStyle = '#86efac';
+  ctx.fillRect(14, 12, 2, 2);
+  ctx.fillRect(12, 15, 2, 1);
+
+  ctx.fillStyle = '#16a34a';
+  ctx.fillRect(8, 18, 3, 3);
+  ctx.fillRect(9, 21, 4, 3);
+  ctx.fillRect(10, 24, 4, 3);
+  ctx.fillStyle = '#86efac';
+  ctx.fillRect(7, 17, 2, 2);
+
+  ctx.fillStyle = '#16a34a';
+  ctx.fillRect(18, 17, 4, 3);
+  ctx.fillRect(16, 20, 4, 3);
+  ctx.fillRect(15, 23, 4, 3);
+  ctx.fillStyle = '#86efac';
+  ctx.fillRect(21, 16, 2, 2);
+
+  // 4. Shell 1: Fan Scallop Shell (x = 26 to 36, y = 30 to 38)
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(26, 30, 11, 9);
+  ctx.fillStyle = '#fef3c7';
+  ctx.fillRect(27, 31, 9, 7);
+  ctx.fillStyle = '#d97706';
+  ctx.fillRect(28, 31, 1, 6);
+  ctx.fillRect(31, 31, 1, 6);
+  ctx.fillRect(34, 31, 1, 6);
+  ctx.fillStyle = '#fde047';
+  ctx.fillRect(27, 31, 2, 3);
+  ctx.fillRect(32, 31, 2, 3);
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(30, 37, 3, 2);
+
+  // 5. Shell 2: Spiral Conch Shell (x = 39 to 50, y = 32 to 38)
+  ctx.fillStyle = '#831843';
+  ctx.fillRect(39, 32, 11, 7);
+  ctx.fillStyle = '#fce7f3';
+  ctx.fillRect(40, 33, 9, 5);
+  ctx.fillStyle = '#f472b6';
+  ctx.fillRect(41, 33, 5, 4);
+  ctx.fillStyle = '#db2777';
+  ctx.fillRect(42, 34, 3, 3);
+  ctx.fillStyle = '#831843';
+  ctx.fillRect(46, 34, 2, 3);
+
+  return canvas.toDataURL();
+}
+
+function getPixelShipInBottleDataUrl(): string {
+  if (typeof document === 'undefined') return '';
+  const canvas = document.createElement('canvas');
+  canvas.width = 56;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+
+  // 1. Wooden Cradle Stand (y = 43 to 53)
+  const drawCradleBlock = (bx: number) => {
+    ctx.fillStyle = '#3e2230';
+    ctx.fillRect(bx, 43, 8, 10);
+    ctx.fillStyle = '#a8693a';
+    ctx.fillRect(bx + 1, 44, 6, 8);
+    ctx.fillStyle = '#e0a368';
+    ctx.fillRect(bx + 1, 44, 6, 1);
+    ctx.fillStyle = '#831843';
+    ctx.fillRect(bx + 2, 43, 4, 2);
+  };
+  drawCradleBlock(16);
+  drawCradleBlock(36);
+
+  ctx.fillStyle = '#3e2230';
+  ctx.fillRect(18, 49, 22, 3);
+  ctx.fillStyle = '#a8693a';
+  ctx.fillRect(18, 50, 22, 1);
+
+  // 2. The Glass Bottle Outer Shell (x = 6 to 52, y = 21 to 44)
+  ctx.fillStyle = '#334155';
+  ctx.fillRect(16, 21, 35, 23);
+  ctx.fillRect(11, 28, 7, 9);
+  ctx.fillRect(8, 27, 4, 11);
+
+  ctx.fillStyle = 'rgba(186, 230, 253, 0.18)';
+  ctx.fillRect(17, 22, 33, 21);
+  ctx.fillRect(12, 29, 6, 7);
+
+  // Cork Stopper in bottle mouth
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(5, 29, 5, 7);
+  ctx.fillStyle = '#b45309';
+  ctx.fillRect(6, 30, 4, 5);
+  ctx.fillStyle = '#d97706';
+  ctx.fillRect(6, 30, 2, 2);
+  ctx.fillStyle = '#dc2626';
+  ctx.fillRect(5, 31, 2, 3);
+
+  // 3. Ocean Water inside bottom of bottle (y = 38 to 42)
+  ctx.fillStyle = '#0369a1';
+  ctx.fillRect(17, 38, 33, 4);
+  ctx.fillStyle = '#0284c7';
+  ctx.fillRect(17, 38, 33, 2);
+  ctx.fillStyle = '#e0f2fe';
+  ctx.fillRect(20, 38, 3, 1);
+  ctx.fillRect(28, 38, 4, 1);
+  ctx.fillRect(38, 38, 3, 1);
+  ctx.fillRect(45, 38, 2, 1);
+
+  // 4. Miniature Galleon Ship (inside bottle, x = 22 to 46, y = 25 to 39)
+  ctx.fillStyle = '#18181b';
+  ctx.fillRect(23, 34, 22, 5);
+  ctx.fillRect(22, 33, 4, 3);
+  ctx.fillRect(40, 32, 6, 3);
+
+  ctx.fillStyle = '#78350f';
+  ctx.fillRect(24, 34, 20, 4);
+  ctx.fillRect(41, 33, 4, 2);
+  ctx.fillStyle = '#ca8a04';
+  ctx.fillRect(25, 35, 18, 1);
+  ctx.fillStyle = '#0f172a';
+  ctx.fillRect(28, 36, 1, 1);
+  ctx.fillRect(32, 36, 1, 1);
+  ctx.fillRect(36, 36, 1, 1);
+
+  // 3 Masts
+  ctx.fillStyle = '#451a03';
+  ctx.fillRect(27, 26, 1, 8);
+  ctx.fillRect(34, 24, 1, 10);
+  ctx.fillRect(40, 27, 1, 7);
+
+  // Billowing White Square Sails
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(25, 27, 5, 4);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(25, 27, 4, 3);
+
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(31, 25, 6, 6);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(31, 25, 5, 5);
+
+  ctx.fillStyle = '#cbd5e1';
+  ctx.fillRect(38, 28, 4, 4);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(38, 28, 3, 3);
+
+  // Red Pirate Pennant fluttering atop mainmast
+  ctx.fillStyle = '#ef4444';
+  ctx.fillRect(35, 24, 3, 2);
+  ctx.fillRect(38, 24, 1, 1);
+
+  // 5. Crisp Glass Specular Highlights
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.fillRect(20, 23, 26, 1);
+  ctx.fillRect(18, 24, 2, 2);
+  ctx.fillRect(46, 24, 2, 2);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.fillRect(22, 41, 18, 1);
+
+  return canvas.toDataURL();
+}
+
 const LeftRailProps: React.FC<{ width: number; height: number }> = ({ width, height }) => {
   if (width < 24) return null;
-  const scale = Math.min(1.0, (width - 8) / 80);
-  const propW = 80 * scale;
-  
+  const propW = Math.min(84, width - 8);
+
+  const netDataUrl = React.useMemo(() => getPixelFishingNetDataUrl(), []);
+  const [flameFrame, setFlameFrame] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFlameFrame((prev) => (prev + 1) % 3);
+    }, 180);
+    return () => clearInterval(timer);
+  }, []);
+
+  const lanternDataUrl = React.useMemo(() => getPixelLanternDataUrl(flameFrame), [flameFrame]);
+
   return (
     <div
       style={{
@@ -1962,82 +2452,61 @@ const LeftRailProps: React.FC<{ width: number; height: number }> = ({ width, hei
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'space-around',
-        paddingTop: '40px',
-        paddingBottom: '40px',
+        paddingTop: '36px',
+        paddingBottom: '36px',
         boxSizing: 'border-box',
       }}
     >
-      <div style={{ width: `${propW}px`, height: `${propW * 1.5}px`, position: 'relative' }}>
-        <svg
-          viewBox="0 0 80 120"
-          style={{ width: '100%', height: '100%' }}
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            d="M 10,10 L 70,110 M 20,10 L 75,100 M 30,10 L 80,90 M 40,10 L 80,70 M 50,10 L 80,50
-               M 70,10 L 10,110 M 60,10 L 5,100 M 50,10 L 0,90 M 40,10 L 0,70 M 30,10 L 0,50"
-            stroke="#94a3b8"
-            strokeWidth="1.5"
-            strokeOpacity="0.4"
-            fill="none"
-          />
-          <path d="M 5,5 Q 40,15 75,5" stroke="#78350f" strokeWidth="2.5" fill="none" />
-          <ellipse cx="20" cy="11" rx="5" ry="7" fill="#b45309" stroke="#451a03" strokeWidth="1" />
-          <ellipse cx="19" cy="9" rx="2" ry="3" fill="#f59e0b" />
-          <ellipse cx="40" cy="13" rx="5" ry="7" fill="#b45309" stroke="#451a03" strokeWidth="1" />
-          <ellipse cx="39" cy="11" rx="2" ry="3" fill="#f59e0b" />
-          <ellipse cx="60" cy="10" rx="5" ry="7" fill="#b45309" stroke="#451a03" strokeWidth="1" />
-          <ellipse cx="59" cy="8" rx="2" ry="3" fill="#f59e0b" />
-        </svg>
-      </div>
+      {/* Fishing net with 3 cork floats and caught starfish */}
+      <img
+        src={netDataUrl}
+        alt="Fishing Net"
+        style={{
+          width: `${propW}px`,
+          height: `${Math.round(propW * 1.33)}px`,
+          imageRendering: 'pixelated',
+          display: 'block',
+          objectFit: 'contain',
+          filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))',
+        }}
+      />
 
-      <div style={{ width: `${propW}px`, height: `${propW * 1.5}px`, position: 'relative' }}>
-        <svg
-          viewBox="0 0 80 120"
-          style={{ width: '100%', height: '100%' }}
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path d="M 40,0 L 40,30 M 15,30 L 65,30" stroke="#4b5563" strokeWidth="3" strokeLinecap="round" />
-          <path d="M 15,30 Q 40,15 65,30" stroke="#374151" strokeWidth="2" fill="none" />
-          <path d="M 25,30 L 55,30 L 60,42 L 20,42 Z" fill="#1f2937" stroke="#111827" strokeWidth="1" />
-          <path d="M 28,31 L 52,31" stroke="#9ca3af" strokeWidth="1" />
-          <rect x="25" y="42" width="30" height="38" rx="3" fill="#93c5fd" fillOpacity="0.25" stroke="#1f2937" strokeWidth="1.5" />
-          <line x1="33" y1="42" x2="33" y2="80" stroke="#111827" strokeWidth="1" />
-          <line x1="47" y1="42" x2="47" y2="80" stroke="#111827" strokeWidth="1" />
-          <circle cx="40" cy="62" r="14" fill="#fbbf24" opacity="0.15" />
-          <path
-            className="lantern-flame"
-            d="M 40,48 Q 46,58 40,70 Q 34,58 40,48 Z"
-            fill="#f59e0b"
-            stroke="#b45309"
-            strokeWidth="0.5"
-            style={{
-              transformOrigin: '40px 70px',
-              animation: 'lantern-flicker 1.8s infinite ease-in-out',
-            }}
-          />
-          <path
-            className="lantern-flame-inner"
-            d="M 40,54 Q 43,61 40,68 Q 37,61 40,54 Z"
-            fill="#fde047"
-            style={{
-              transformOrigin: '40px 68px',
-              animation: 'lantern-flicker 1.8s infinite ease-in-out',
-              animationDelay: '0.2s',
-            }}
-          />
-          <rect x="23" y="80" width="34" height="8" rx="1" fill="#1f2937" stroke="#111827" strokeWidth="1" />
-          <rect x="25" y="81" width="30" height="2" fill="#4b5563" />
-        </svg>
-      </div>
+      {/* Flickering pixel art nautical brass lantern */}
+      <img
+        src={lanternDataUrl}
+        alt="Nautical Lantern"
+        style={{
+          width: `${propW}px`,
+          height: `${Math.round(propW * 1.33)}px`,
+          imageRendering: 'pixelated',
+          display: 'block',
+          objectFit: 'contain',
+          filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.6))',
+        }}
+      />
+
+      {/* Arcade cabinet vertical pixel carved oak molding along inner border */}
+      <div
+        style={{
+          position: 'absolute',
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: '6px',
+          background: 'linear-gradient(to right, #3e2230 0%, #6b3f2a 30%, #a8693a 70%, #1e1b18 100%)',
+          boxShadow: 'inset 1px 0 0 #d97706, 2px 0 4px rgba(0,0,0,0.6)',
+        }}
+      />
     </div>
   );
 };
 
 const RightRailProps: React.FC<{ width: number; height: number }> = ({ width, height }) => {
   if (width < 24) return null;
-  const scale = Math.min(1.0, (width - 8) / 80);
-  const propW = 80 * scale;
+  const propW = Math.min(84, width - 8);
+
+  const shelfDataUrl = React.useMemo(() => getPixelShelfDataUrl(), []);
+  const shipDataUrl = React.useMemo(() => getPixelShipInBottleDataUrl(), []);
 
   return (
     <div
@@ -2049,55 +2518,51 @@ const RightRailProps: React.FC<{ width: number; height: number }> = ({ width, he
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'space-around',
-        paddingTop: '40px',
-        paddingBottom: '40px',
+        paddingTop: '36px',
+        paddingBottom: '36px',
         boxSizing: 'border-box',
       }}
     >
-      <div style={{ width: `${propW}px`, height: `${propW * 1.5}px`, position: 'relative' }}>
-        <svg
-          viewBox="0 0 80 120"
-          style={{ width: '100%', height: '100%' }}
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect x="5" y="75" width="70" height="10" rx="1" fill="#7c2f35" stroke="#3e2230" strokeWidth="1.5" />
-          <rect x="6" y="76" width="68" height="2" fill="#d9a864" />
-          <path d="M 15,85 L 15,98 L 22,85 Z" fill="#3e2230" />
-          <path d="M 65,85 L 65,98 L 58,85 Z" fill="#3e2230" />
-          <path d="M 15,75 L 30,75 L 27,55 L 18,55 Z" fill="#c2410c" stroke="#7c2d12" strokeWidth="1" />
-          <rect x="14" y="52" width="18" height="3" fill="#ea580c" rx="0.5" stroke="#7c2d12" strokeWidth="0.5" />
-          <path d="M 23,52 C 20,40 10,48 12,52" fill="none" stroke="#15803d" strokeWidth="3.5" strokeLinecap="round" />
-          <path d="M 23,52 C 23,35 15,30 20,40" fill="none" stroke="#16a34a" strokeWidth="3" strokeLinecap="round" />
-          <path d="M 23,52 C 25,32 32,38 27,45" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" />
-          <path d="M 23,52 C 30,45 35,55 31,52" fill="none" stroke="#15803d" strokeWidth="3" strokeLinecap="round" />
-          <path d="M 45,75 Q 40,68 45,63 Q 50,68 45,75 Z" fill="#fef3c7" stroke="#b45309" strokeWidth="1" />
-          <path d="M 43,65 L 45,74 M 45,64 L 45,74 M 47,65 L 45,74" stroke="#d97706" strokeWidth="0.5" />
-          <ellipse cx="60" cy="72" rx="6" ry="3" fill="#fbcfe8" stroke="#be185d" strokeWidth="1" />
-          <ellipse cx="58" cy="72" rx="3" ry="1.5" fill="#f472b6" />
-        </svg>
-      </div>
+      {/* Carved wooden shelf with potted plant and 2 shells */}
+      <img
+        src={shelfDataUrl}
+        alt="Wooden Shelf"
+        style={{
+          width: `${propW}px`,
+          height: `${Math.round(propW * 1.15)}px`,
+          imageRendering: 'pixelated',
+          display: 'block',
+          objectFit: 'contain',
+          filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))',
+        }}
+      />
 
-      <div style={{ width: `${propW}px`, height: `${propW * 1.5}px`, position: 'relative' }}>
-        <svg
-          viewBox="0 0 80 120"
-          style={{ width: '100%', height: '100%' }}
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <rect x="25" y="70" width="30" height="6" fill="#7a5240" stroke="#3e2230" strokeWidth="1" />
-          <rect x="28" y="66" width="4" height="4" fill="#b07c4f" />
-          <rect x="48" y="66" width="4" height="4" fill="#b07c4f" />
-          <rect x="14" y="48" width="4" height="6" fill="#b45309" stroke="#78350f" strokeWidth="0.5" />
-          <rect x="18" y="46" width="8" height="10" fill="#e2e8f0" fillOpacity="0.4" stroke="#64748b" strokeWidth="1" />
-          <rect x="26" y="38" width="40" height="26" rx="5" fill="#93c5fd" fillOpacity="0.2" stroke="#64748b" strokeWidth="1.5" />
-          <path d="M 30,41 L 60,41" stroke="#ffffff" strokeWidth="1" strokeOpacity="0.5" />
-          <rect x="28" y="56" width="36" height="6" rx="1" fill="#2563eb" />
-          <path d="M 38,56 L 54,56 L 51,52 L 41,52 Z" fill="#78350f" />
-          <line x1="43" y1="52" x2="43" y2="44" stroke="#78350f" strokeWidth="1" />
-          <path d="M 43,44 L 40,48 L 43,51 Z" fill="#ffffff" stroke="#cbd5e1" strokeWidth="0.5" />
-          <line x1="49" y1="52" x2="49" y2="42" stroke="#78350f" strokeWidth="1" />
-          <path d="M 49,42 L 46,46 L 49,50 Z" fill="#ffffff" stroke="#cbd5e1" strokeWidth="0.5" />
-        </svg>
-      </div>
+      {/* Ship in a bottle on carved wooden stand */}
+      <img
+        src={shipDataUrl}
+        alt="Ship in a Bottle"
+        style={{
+          width: `${propW}px`,
+          height: `${Math.round(propW * 1.15)}px`,
+          imageRendering: 'pixelated',
+          display: 'block',
+          objectFit: 'contain',
+          filter: 'drop-shadow(0 6px 10px rgba(0,0,0,0.6))',
+        }}
+      />
+
+      {/* Arcade cabinet vertical pixel carved oak molding along inner border */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: '6px',
+          background: 'linear-gradient(to left, #3e2230 0%, #6b3f2a 30%, #a8693a 70%, #1e1b18 100%)',
+          boxShadow: 'inset -1px 0 0 #d97706, -2px 0 4px rgba(0,0,0,0.6)',
+        }}
+      />
     </div>
   );
 };
@@ -2133,19 +2598,27 @@ export default function App() {
     if (canvas) {
       initializeInput(canvas);
     }
+    // Eagerly initialize and start audio immediately without player input
+    initAudio();
+    resumeAudioContext();
+    try {
+      const savedSound = localStorage.getItem('tankSoundEnabled');
+      if (savedSound !== null) (game.audio as any).soundEnabled = JSON.parse(savedSound);
+      const savedMusic = localStorage.getItem('tankMusicEnabled');
+      if (savedMusic !== null) (game.audio as any).musicEnabled = JSON.parse(savedMusic);
+      const saved = localStorage.getItem('tankAudioV1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.music === 'number' && parsed.music >= 0 && parsed.music <= 1) game.audio.music = parsed.music;
+        if (typeof parsed.sfx === 'number' && parsed.sfx >= 0 && parsed.sfx <= 1) game.audio.sfx = parsed.sfx;
+        if (typeof parsed.muted === 'boolean') game.audio.muted = parsed.muted;
+      }
+      updateAudioVolumes();
+    } catch (e) {}
+
     onUnlock(() => {
       initAudio();
-      // Load settings
-      try {
-        const saved = localStorage.getItem('tankAudioV1');
-        if (saved) {
-           const parsed = JSON.parse(saved);
-           if (typeof parsed.music === 'number' && parsed.music >= 0 && parsed.music <= 1) game.audio.music = parsed.music;
-           if (typeof parsed.sfx === 'number' && parsed.sfx >= 0 && parsed.sfx <= 1) game.audio.sfx = parsed.sfx;
-           if (typeof parsed.muted === 'boolean') game.audio.muted = parsed.muted;
-           updateAudioVolumes();
-        }
-      } catch(e) {}
+      resumeAudioContext();
     });
     return () => {
       shutdownInput();
@@ -2738,7 +3211,7 @@ export default function App() {
     gs.tutorialStep = 0; // Will be incremented to 1 in loop or setup
     gs.state = 'PLAYING';
     gs.gameMode = 'tutorial';
-    gs.transitionTimer = 0.4;
+    gs.transitionTimer = CONFIG.transitionDuration;
 
     if (tutType === 'sandbox') {
       gs.money = 500;
@@ -2833,11 +3306,21 @@ export default function App() {
     invalidateCachedBackdrop();
   }, []);
 
+  // Trigger smooth opaque screen transition with snapshot capture and 1.0s duration
+  const triggerTransition = useCallback((targetScreen?: GameState['state']) => {
+    const gs = gameStateRef.current;
+    captureTransitionSnapshot(offscreenCanvasRef.current || canvasRef.current);
+    if (targetScreen) {
+      gs.state = targetScreen;
+      setCurrentScreen(targetScreen);
+    }
+    gs.transitionTimer = CONFIG.transitionDuration;
+  }, []);
+
   // Start game from title
   const startGame = useCallback((mode: 'levels' | 'sandbox' = 'levels') => {
     game.mode = mode;
     const gs = gameStateRef.current;
-    gs.state = 'PLAYING';
     gs.gameMode = mode;
     gs.level = 1;
 
@@ -2903,8 +3386,7 @@ export default function App() {
     game.mode = mode;
     gs.gameMode = mode;
     gs.level = 1;
-    gs.state = 'PLAYING';
-    gs.transitionTimer = 0.4;
+    triggerTransition('PLAYING');
 
     invalidateCachedBackdrop();
     const lvlConfig = CONFIG.LEVELS[0];
@@ -2980,9 +3462,7 @@ export default function App() {
     }
 
     if (gs.state === 'PAUSED' || gs.state === 'SANDBOX_OPTIONS') {
-      gs.state = 'PLAYING';
-      gs.transitionTimer = 0.4;
-      setCurrentScreen('PLAYING');
+      triggerTransition('PLAYING');
       setMuffled(false);
     }
 
@@ -2992,18 +3472,16 @@ export default function App() {
     setWeaponLevelUI(0);
     setEggPiecesUI(0);
     lastTimeRef.current = performance.now();
-  }, []);
+  }, [triggerTransition]);
 
   // Resume game from pause
   const resumeGame = useCallback(() => {
     if (gameStateRef.current.state === 'PAUSED' || gameStateRef.current.state === 'SANDBOX_OPTIONS') {
-      gameStateRef.current.state = 'PLAYING';
-      gameStateRef.current.transitionTimer = 0.4;
-      setCurrentScreen('PLAYING');
+      triggerTransition('PLAYING');
       lastTimeRef.current = performance.now();
       setMuffled(false);
     }
-  }, []);
+  }, [triggerTransition]);
 
   // Reset / Retry after Game Over
   const retryGame = useCallback(() => {
@@ -3015,8 +3493,7 @@ export default function App() {
     const gs = gameStateRef.current;
     const nextLvl = gs.level + 1;
     gs.level = nextLvl;
-    gs.state = 'PLAYING';
-    gs.transitionTimer = 0.4;
+    triggerTransition('PLAYING');
     invalidateCachedBackdrop();
 
     const lvlIndex = Math.min(CONFIG.LEVELS.length - 1, nextLvl - 1);
@@ -3384,10 +3861,8 @@ export default function App() {
         if (isTutorialNeeded()) {
           startTutorial('levels');
         } else {
-          gs.state = 'LEVEL_SELECT';
           gs.levelSelectSelected = 1;
-          gs.transitionTimer = 0.4;
-          setCurrentScreen('LEVEL_SELECT');
+          triggerTransition('LEVEL_SELECT');
         }
         return;
       }
@@ -3411,9 +3886,7 @@ export default function App() {
       }
       // 3. Settings Menu: (logical 230..570, 364..432)
       if (logicalX >= 230 && logicalX <= 570 && logicalY >= 364 && logicalY <= 432) {
-        gs.state = 'SETTINGS';
-        gs.transitionTimer = 0.4;
-        setCurrentScreen('SETTINGS');
+        triggerTransition('SETTINGS');
         return;
       }
       // 4. Language Switcher Button on Title: (logical 230..570, 436..492)
@@ -3436,8 +3909,7 @@ export default function App() {
       // 1. Back button (logical coordinates matching x: 46, y: 35, w: 24, h: 24 UI px scaled by 2):
       // UI px: x: 46, y: 35, w: 24, h: 24 -> logical 2x: x: 92, y: 70, w: 48, h: 48
       if (logicalX >= 92 && logicalX <= 140 && logicalY >= 70 && logicalY <= 118) {
-        gs.state = 'TITLE';
-        gs.transitionTimer = 0.4;
+        triggerTransition('TITLE');
         return;
       }
 
@@ -3449,8 +3921,7 @@ export default function App() {
         gs.level = targetLvl;
         
         // Reset and launch level!
-        gs.state = 'PLAYING';
-        gs.transitionTimer = 0.4;
+        triggerTransition('PLAYING');
         invalidateCachedBackdrop();
         
         const lvlConfig = CONFIG.LEVELS[targetLvl - 1] || CONFIG.LEVELS[0];
@@ -3538,15 +4009,15 @@ export default function App() {
     }
 
     if (gs.state === 'SETTINGS') {
-      // Column 1: SHAKE (logical 160..380, 168..208)
+      // Column 1: SOUND TOGGLE (logical 160..380, 168..208)
       if (logicalX >= 160 && logicalX <= 380 && logicalY >= 168 && logicalY <= 208) {
-        gs.screenShakeEnabled = !(gs.screenShakeEnabled !== false);
+        toggleSound();
         playShopSound(0.6);
         return;
       }
-      // Column 1: WATER FX (logical 160..380, 216..256)
+      // Column 1: MUSIC TOGGLE (logical 160..380, 216..256)
       if (logicalX >= 160 && logicalX <= 380 && logicalY >= 216 && logicalY <= 256) {
-        gs.waterFxHigh = !(gs.waterFxHigh !== false);
+        toggleMusic();
         playShopSound(0.6);
         return;
       }
@@ -3556,26 +4027,21 @@ export default function App() {
         playShopSound(0.6);
         return;
       }
-      // Column 2: PARTICLES (logical 420..640, 168..208)
+      // Column 2: SHAKE (logical 420..640, 168..208)
       if (logicalX >= 420 && logicalX <= 640 && logicalY >= 168 && logicalY <= 208) {
+        gs.screenShakeEnabled = !(gs.screenShakeEnabled !== false);
+        playShopSound(0.6);
+        return;
+      }
+      // Column 2: PARTICLES (logical 420..640, 216..256)
+      if (logicalX >= 420 && logicalX <= 640 && logicalY >= 216 && logicalY <= 256) {
         gs.particlesEnabled = !(gs.particlesEnabled !== false);
         playShopSound(0.6);
         return;
       }
-      // Column 2: FPS CAP (logical 420..640, 216..256)
-      if (logicalX >= 420 && logicalX <= 640 && logicalY >= 216 && logicalY <= 256) {
-        gs.fpsCap30 = !gs.fpsCap30;
-        playShopSound(0.6);
-        return;
-      }
-      // Column 2: LOW POWER MODE (logical 420..640, 264..304)
+      // Column 2: FPS CAP (logical 420..640, 264..304)
       if (logicalX >= 420 && logicalX <= 640 && logicalY >= 264 && logicalY <= 304) {
-        gs.lowPowerMode = !gs.lowPowerMode;
-        if (gs.lowPowerMode) {
-          gs.particlesEnabled = false;
-          gs.waterFxHigh = false;
-          gs.fpsCap30 = true;
-        }
+        gs.fpsCap30 = !gs.fpsCap30;
         playShopSound(0.6);
         return;
       }
@@ -3587,10 +4053,8 @@ export default function App() {
       }
       // Bottom Row: BACK TO TITLE (logical 420..640, 316..360)
       if (logicalX >= 420 && logicalX <= 640 && logicalY >= 316 && logicalY <= 360) {
-        gs.state = 'TITLE';
+        triggerTransition('TITLE');
         game.mode = 'levels';
-        gs.transitionTimer = 0.4;
-        setCurrentScreen('TITLE');
         playShopSound(0.6);
         return;
       }
@@ -3611,10 +4075,8 @@ export default function App() {
         if (gs.shop) {
           gs.shop.levels = {};
         }
-        gs.state = 'TITLE';
+        triggerTransition('TITLE');
         game.mode = 'levels';
-        gs.transitionTimer = 0.4;
-        setCurrentScreen('TITLE');
         playShopSound(0.8);
         return;
       }
@@ -4047,11 +4509,9 @@ export default function App() {
 
       // Pause Button (x: 740 - 800) - generous corner mobile touch hitbox
       if (logicalX >= 740 && logicalX <= 800) {
-        gs.state = 'PAUSED';
         gs.shop.open = false;
         if (gs.mods) gs.mods.open = false;
-        gs.transitionTimer = 0.4;
-        setCurrentScreen('PAUSED');
+        triggerTransition('PAUSED');
         setMuffled(true);
         return;
       }
@@ -5501,8 +5961,7 @@ export default function App() {
         }
 
         if (gs.eggHatchTimer >= CONFIG.eggHatchDuration) {
-          gs.state = 'LEVEL_COMPLETE';
-          gs.transitionTimer = 0.4;
+          triggerTransition('LEVEL_COMPLETE');
           gs.shop.open = false;
           gs.shop.animTimer = 0;
           addConfettiBurst(gs, 200, 150);
@@ -5510,7 +5969,6 @@ export default function App() {
           const finalMoney = gs.money;
           levelStatsRef.current = { elapsedTime: finalTime, finalMoney };
           setLevelStats({ elapsedTime: finalTime, finalMoney });
-          setCurrentScreen('LEVEL_COMPLETE');
           playHatchSound();
 
           // Persist progress safely

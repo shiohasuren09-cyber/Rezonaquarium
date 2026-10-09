@@ -13,6 +13,10 @@ export const game = {
   profile: null as any,
   progress: {
     completed: {} as Record<string, number>,
+    themes: {
+      owned: ['default'] as string[],
+      active: 'default' as string,
+    },
     tutorial: false,
     sandboxTutorial: false,
   },
@@ -32,6 +36,8 @@ export const game = {
     music: 0.6,
     sfx: 0.8,
     muted: false,
+    soundEnabled: true,
+    musicEnabled: true,
   },
 };
 
@@ -229,13 +235,38 @@ export function initAudio() {
 export function updateAudioVolumes() {
   if (!ctx || !masterGain || !musicBus || !sfxBus) return;
   const muted = game.audio.muted;
+  const soundEnabled = (game.audio as any).soundEnabled !== false;
+  const musicEnabled = (game.audio as any).musicEnabled !== false;
+
   const masterVal = muted ? 0 : game.audio.master;
-  const musicVal = muted ? 0 : game.audio.music;
-  const sfxVal = muted ? 0 : game.audio.sfx;
+  const musicVal = (muted || !musicEnabled) ? 0 : game.audio.music;
+  const sfxVal = (muted || !soundEnabled) ? 0 : game.audio.sfx;
 
   rampParam(masterGain.gain, masterVal);
   rampParam(musicBus.gain, musicVal);
   rampParam(sfxBus.gain, sfxVal);
+}
+
+export function toggleSound(): boolean {
+  (game.audio as any).soundEnabled = !((game.audio as any).soundEnabled !== false);
+  updateAudioVolumes();
+  try {
+    localStorage.setItem('tankSoundEnabled', JSON.stringify((game.audio as any).soundEnabled));
+  } catch (e) {}
+  return (game.audio as any).soundEnabled;
+}
+
+export function toggleMusic(): boolean {
+  (game.audio as any).musicEnabled = !((game.audio as any).musicEnabled !== false);
+  updateAudioVolumes();
+  if ((game.audio as any).musicEnabled) {
+    initAudio();
+    resumeAudioContext();
+  }
+  try {
+    localStorage.setItem('tankMusicEnabled', JSON.stringify((game.audio as any).musicEnabled));
+  } catch (e) {}
+  return (game.audio as any).musicEnabled;
 }
 
 // --------------------------------------------------------------------------
@@ -250,7 +281,8 @@ export function setMuffled(isMuffled: boolean) {
   if (!ctx || !musicBus || !muffleFilter) return;
 
   const now = ctx.currentTime;
-  const currentMusicVolume = game.audio.muted ? 0 : game.audio.music;
+  const musicEnabled = (game.audio as any).musicEnabled !== false;
+  const currentMusicVolume = (game.audio.muted || !musicEnabled) ? 0 : game.audio.music;
   const targetMusicVal = isMuffled ? currentMusicVolume * 0.35 : currentMusicVolume;
   const targetFreq = isMuffled ? 900 : 20000;
 
@@ -271,6 +303,7 @@ export function setMuffled(isMuffled: boolean) {
  */
 function claimVoice(soundId: string, customCap?: number): boolean {
   if (!ctx) return false;
+  if ((game.audio as any).soundEnabled === false) return false;
 
   // 1. Retrigger Floor Check
   const now = performance.now();
@@ -1084,21 +1117,22 @@ export function updateAudioState(state: string, newLevel: number, isAlienAlive: 
 }
 
 function applyLayerFades() {
-  if (!ctx) return;
+  if (!ctx || !bassGain || !padGain || !arpGain || !leadGain || !drumGain) return;
   const now = ctx.currentTime;
   const isPlay = currentGameState === 'PLAYING';
-  const isTitle = currentGameState === 'TITLE';
   
-  const fade = (node: GainNode, active: boolean) => {
+  const fade = (node: GainNode, targetGain: number) => {
     node.gain.cancelScheduledValues(now);
-    node.gain.linearRampToValueAtTime(active ? 0.2 : 0, now + 0.4);
+    node.gain.linearRampToValueAtTime(targetGain, now + 0.35);
   };
   
-  fade(bassGain!, isTitle || isPlay);
-  fade(padGain!, isTitle || isPlay);
-  fade(arpGain!, isTitle || isPlay);
-  fade(leadGain!, isPlay);
-  fade(drumGain!, isPlay);
+  // BGM plays indefinitely across all game states (TITLE, SETTINGS, LEVEL_SELECT, PLAYING, PAUSED, etc.)
+  fade(bassGain, 0.22);
+  fade(padGain, 0.20);
+  fade(arpGain, 0.16);
+  fade(leadGain, isPlay ? 0.20 : 0.08); // Chill ambient lead in menus/settings, full lead in gameplay
+  fade(drumGain, isPlay ? 0.22 : 0.0);  // Drums kick in during active gameplay
+  if (droneGain) fade(droneGain, 0.14);
 }
 
 export function startProceduralMusic() {
@@ -1112,6 +1146,8 @@ export function startProceduralMusic() {
   leadGain = ctx.createGain(); leadGain.connect(musicBus!);
   drumGain = ctx.createGain(); drumGain.connect(sfxBus!);
   droneGain = ctx.createGain(); droneGain.connect(musicBus!);
+
+  applyLayerFades();
 
   nextNoteTime = ctx.currentTime;
   sequencerInterval = setInterval(scheduler, LOOKAHEAD_MS);
@@ -1353,8 +1389,47 @@ function scheduleDrums(step: number, time: number) {
 
 /**
  * Suspend context on app page-hidden, and auto resume when back.
+ * Also start BGM indefinitely on page load without player input.
  */
-if (typeof document !== 'undefined') {
+if (typeof window !== 'undefined') {
+  // Load saved sound/music preferences
+  try {
+    const savedSound = localStorage.getItem('tankSoundEnabled');
+    if (savedSound !== null) (game.audio as any).soundEnabled = JSON.parse(savedSound);
+    const savedMusic = localStorage.getItem('tankMusicEnabled');
+    if (savedMusic !== null) (game.audio as any).musicEnabled = JSON.parse(savedMusic);
+  } catch (e) {}
+
+  const autoStartAudio = () => {
+    initAudio();
+    resumeAudioContext();
+  };
+
+  // 1. Start audio immediately without player input
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    autoStartAudio();
+  } else {
+    window.addEventListener('DOMContentLoaded', autoStartAudio);
+    window.addEventListener('load', autoStartAudio);
+  }
+
+  // 2. Also register passive presence listeners (pointermove, touch, key, focus) in case browser autoplay held it suspended
+  const passiveEvents = ['pointerdown', 'pointermove', 'touchstart', 'touchend', 'keydown', 'click', 'focus', 'mouseenter', 'wheel'];
+  passiveEvents.forEach((evt) => {
+    window.addEventListener(evt, autoStartAudio, { passive: true, capture: true });
+  });
+
+  // 3. Keep gentle interval to resume if browser allows it
+  const resumeTimer = setInterval(() => {
+    if (!ctx) {
+      initAudio();
+    } else if (ctx.state !== 'running') {
+      ctx.resume().catch(() => {});
+    } else {
+      clearInterval(resumeTimer);
+    }
+  }, 400);
+
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       if (ctx && ctx.state === 'running') {

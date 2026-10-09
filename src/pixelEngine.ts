@@ -65,6 +65,20 @@ export const PALETTE = {
   purple4: '#5e3a8c', // Shade / carnivoreDark
   purple5: '#3a2660', // Dark shadow / silhouette outline
 
+  // Blue ramp (for Blue Tang MARINA, Lanternfish LUMI, Humphead Wrasse AURORA)
+  blue1: '#c2f0ff',   // Highlight / ice mint
+  blue2: '#68bcf8',   // Light / sky
+  blue3: '#2874db',   // Base royal cobalt
+  blue4: '#1648a2',   // Shade
+  blue5: '#0c2262',   // Dark shadow / silhouette outline
+
+  // Pink ramp (for Mandarinfish GLIMMER swirl patterning)
+  pink1: '#ffd4ec',   // Highlight / petal
+  pink2: '#f890c8',   // Light
+  pink3: '#de4e96',   // Base vivid magenta-pink
+  pink4: '#a02868',   // Shade
+  pink5: '#5c1038',   // Dark shadow / silhouette outline
+
   // --- Base Aliases and Theme Utility Accents ---
   outline: '#2a1b24', // Silhouette fallback against similar-value backgrounds
   cream: '#fff1d6',
@@ -127,7 +141,7 @@ export type PaletteKey = keyof typeof PALETTE;
 
 // ----------------------------------------------------------------------------
 // THEME RAMP OVERRIDES
-// Each theme overrides the 8 same 5-tone ramp keys (budget: <= 64 colors per theme)
+// Each theme overrides the 10 same 5-tone ramp keys (budget: <= 64 colors per theme)
 // ----------------------------------------------------------------------------
 export const THEME_RAMPS = {
   default: {
@@ -139,6 +153,8 @@ export const THEME_RAMPS = {
     leaf: ['#d8f29a', '#9bd45a', '#5ea748', '#2f7a4a', '#1f4d34'] as const,
     coral: ['#ffc2a8', '#ff8f78', '#e8604c', '#b8403f', '#6e2a3a'] as const,
     purple: ['#d9b8f0', '#b184d8', '#9a5cc4', '#5e3a8c', '#3a2660'] as const,
+    blue: ['#c2f0ff', '#68bcf8', '#2874db', '#1648a2', '#0c2262'] as const,
+    pink: ['#ffd4ec', '#f890c8', '#de4e96', '#a02868', '#5c1038'] as const,
   },
   decorLagoon: {
     orange: ['#ffe8b8', '#ffc078', '#f29048', '#bd5030', '#6e2838'] as const,
@@ -149,6 +165,8 @@ export const THEME_RAMPS = {
     leaf: ['#e2f8a8', '#aee068', '#6eb652', '#388852', '#1c5038'] as const,
     coral: ['#ffcbb2', '#ff9a85', '#e96d58', '#b54542', '#632532'] as const,
     purple: ['#e0c4f8', '#bc94e0', '#a26cd0', '#664598', '#382458'] as const,
+    blue: ['#ccf4ff', '#78cbf8', '#3888db', '#1e54a8', '#0e2a68'] as const,
+    pink: ['#ffe0f0', '#faa0d2', '#e65fa4', '#a83272', '#621640'] as const,
   },
   decorMidnight: {
     orange: ['#feddb0', '#f0a858', '#dc7c38', '#ab462c', '#5a2232'] as const,
@@ -159,6 +177,8 @@ export const THEME_RAMPS = {
     leaf: ['#c4e890', '#88c850', '#4e9840', '#26683e', '#163e28'] as const,
     coral: ['#f0b8a2', '#e88270', '#cf5448', '#9e3438', '#54202c'] as const,
     purple: ['#cab0e8', '#9e74c8', '#864cb4', '#4e2c7a', '#281844'] as const,
+    blue: ['#9ad8ff', '#5296e8', '#245ec4', '#163c90', '#0a1e58'] as const,
+    pink: ['#f4bcd8', '#d870a4', '#b8387c', '#7e1e54', '#480e30'] as const,
   },
   themeFrutigerAero: {
     orange: ['#fff0c4', '#ffa53a', '#f58a3d', '#d05a28', '#0b2f5b'] as const,
@@ -169,6 +189,8 @@ export const THEME_RAMPS = {
     leaf: ['#eaffbc', '#c9f58a', '#8de04a', '#3fa83a', '#0b2f5b'] as const,
     coral: ['#ffd0d8', '#ff8fa0', '#ff5a6e', '#c8304a', '#0b2f5b'] as const,
     purple: ['#f0e0ff', '#c8a8f8', '#9a5cc4', '#5e3a8c', '#0b2f5b'] as const,
+    blue: ['#e8f8ff', '#7fd6ff', '#2f9ad8', '#1b78b8', '#0b2f5b'] as const,
+    pink: ['#ffe8f4', '#ffb0dc', '#f060a8', '#c83080', '#0b2f5b'] as const,
   },
 };
 
@@ -541,40 +563,150 @@ export {
 // SPRITE DEFINITIONS
 // Pre-baked on startup. No sprite is rebuilt per frame.
 // ============================================================================
-// Hue-Shifted Orange Ramp (highlight #ffe3a8, light #ffb561, body #f58a3d, shade #c4552b, outline #7c2f35)
-// 2x2 cream eye (#fff1d6) with dark pupil (#2a1b24) and highlight (#ffe3a8)
-// 1px coral blush cheek (#e8604c)
+
+// ----------------------------------------------------------------------------
+// FISH PARTS MANIFEST
+// Lists only the anatomical parts that each species really has.
+// ----------------------------------------------------------------------------
+export interface FishPartsManifest {
+  body: boolean;
+  head: boolean;
+  eye: boolean;
+  mouth: boolean;
+  operculum: boolean;
+  dorsal: boolean;
+  pectoral: boolean;
+  pelvic: boolean;
+  anal: boolean;
+  caudal: boolean;
+  lateralLine?: boolean;
+  extras?: string[];
+}
+
+export const FISH_PARTS_MANIFESTS: Record<string, FishPartsManifest> = {
+  guppy_fry: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: false, anal: true, caudal: true,
+    lateralLine: false, extras: ['bigEye', 'roundedTail', 'shortFins'],
+  },
+  guppy_juvenile: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: true, anal: true, caudal: true,
+    lateralLine: true, extras: ['juvenilePattern', 'rayLines'],
+  },
+  guppy_adult: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: true, anal: true, caudal: true,
+    lateralLine: true, extras: ['sailDorsal', 'fanTail', 'fullPattern', 'scaleDither2x2'],
+  },
+  carnivore: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: true, anal: true, caudal: true,
+    lateralLine: true, extras: ['deepBody', 'heavyUnderbite', 'twoRowsTriangularTeeth', 'adiposeFin', 'forkedTail'],
+  },
+  pip_clownfish: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: true, anal: true, caudal: true,
+    lateralLine: true, extras: ['stockyOval', 'roundedTail', 'threeWhiteBands', 'blackBandEdges', 'blackEdgedFins', 'notchedFusedDorsal'],
+  },
+  marina_bluetang: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: true, anal: true, caudal: true,
+    lateralLine: true, extras: ['compressedOval', 'cobaltToMint', 'blackPaletteMarking', 'yellowTailPectoral', 'scalpelSpine1px'],
+  },
+  dot_pufferfish: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: false, anal: true, caudal: true,
+    lateralLine: false, extras: ['nearSphere1_2x', 'tinyRoundedTail', 'translucentFarBackFins', 'beakMouth', 'paleLemon', 'brownSpots', 'spineDots1px'],
+  },
+  bumble_angelfish: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: true, anal: true, caudal: true,
+    lateralLine: true, extras: ['tallDiamond', 'dorsalFilament', 'analFilament', 'trailingPelvicFilaments', 'blackVerticalEyeStripes'],
+  },
+  sol_lionfish: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: true, anal: true, caudal: true,
+    lateralLine: true, extras: ['creamStripes', 'fanPectoralPetals', 'tallDorsalSpinesSunHalo'],
+  },
+  lumi_lanternfish: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: true, anal: true, caudal: true,
+    lateralLine: true, extras: ['slenderDeepBlue', 'largeEyes', 'forkedTail', 'goldPhotophoreDots', 'nightGlow'],
+  },
+  nox_eagleray: {
+    body: true, head: true, eye: true, mouth: false, operculum: false,
+    dorsal: true, pectoral: true, pelvic: true, anal: false, caudal: false,
+    lateralLine: true, extras: ['violetDiamond', 'wingPectorals4FrameFlap', 'whipTail', 'paleUnderside', 'cyanEdgeGlow'],
+  },
+  glimmer_mandarinfish: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: true, anal: true, caudal: true,
+    lateralLine: true, extras: ['chunkyLow', 'largePaddlePectorals', 'shortDorsalTail', 'cyanPinkSwirls'],
+  },
+  veil_veiltail: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: true, anal: true, caudal: true,
+    lateralLine: true, extras: ['pearlyEggBody', 'doubleVeilTail1_5x', 'flowing4FrameCycle'],
+  },
+  aurora_humphead: {
+    body: true, head: true, eye: true, mouth: true, operculum: true,
+    dorsal: true, pectoral: true, pelvic: true, anal: true, caudal: true,
+    lateralLine: true, extras: ['thickBody', 'foreheadHumpCrown', 'thickLips', 'blueGreenBody', 'violetRadiatingEyeLines'],
+  },
+};
+
+// ----------------------------------------------------------------------------
+// BASE FISH PALETTES
+// Counter-shaded (dark back, light belly), 1px sclera ring, 1px pupil, 1px glint
+// Max 16 colors per sprite strictly respected.
+// ----------------------------------------------------------------------------
 const C_FISH_NORMAL: Record<string, PaletteKey> = {
-  B: 'orange3',     // #f58a3d
-  L: 'orange2',     // #ffb561
-  T: 'orange4',     // #c4552b
-  E: 'cream',       // #fff1d6
-  P: 'outline',     // #2a1b24 dark pupil
-  H: 'orange1',     // #ffe3a8 highlight
-  C: 'coral3',      // #e8604c blush
-  F: 'orange2',     // fin
+  B: 'orange3',     // #f58a3d flank body
+  L: 'orange2',     // #ffb561 light counter-shaded belly
+  T: 'orange4',     // #c4552b dark counter-shaded back
+  K: 'orange5',     // #7c2f35 operculum rim & deep shadow
+  E: 'cream',       // #fff1d6 1px sclera ring
+  P: 'outline',     // #2a1b24 1px dark pupil / dying X
+  H: 'white',       // #ffffff 1px eye glint
+  F: 'orange2',     // soft fin rays
+  S: 'orange4',     // spiny fin rays
+  M: 'orange5',     // terminal mouth 1px line
+  l: 'orange2',     // faint dotted lateral line
+  d: 'orange4',     // 2x2 scale dither on flank (size 2 only)
+  J: 'orange1',     // guppy pattern highlight
 };
 
 const C_FISH_HUNGRY: Record<string, PaletteKey> = {
-  B: 'leaf3',       // #5ea748
-  L: 'leaf2',       // #9bd45a
-  T: 'leaf4',       // #2f7a4a
-  E: 'cream',       // #fff1d6
-  P: 'outline',     // #2a1b24
-  H: 'leaf1',       // #d8f29a
-  C: 'sand4',       // #b07c4f
-  F: 'leaf2',       // fin
+  B: 'leaf3',       // dull green/yellow body
+  L: 'leaf2',       // dull light belly
+  T: 'leaf4',       // dull dark back
+  K: 'leaf5',       // dark shadow
+  E: 'cream',       // 1px sclera ring
+  P: 'outline',     // 1px pupil
+  H: 'leaf1',       // dull glint
+  F: 'leaf2',       // folded fin rays
+  S: 'leaf4',       // folded spiny rays
+  M: 'leaf5',       // mouth line
+  l: 'leaf2',       // lateral line
+  d: 'leaf4',       // scale dither
+  J: 'leaf2',       // pattern
 };
 
 const C_FISH_DYING: Record<string, PaletteKey> = {
-  B: 'teal2',       // #5cc2b0
-  L: 'silver',      // #d9e2ea
-  T: 'teal4',       // #1f5566
-  E: 'cream',       // #fff1d6
-  P: 'outline',     // #2a1b24
-  H: 'teal1',       // #bff0dc
-  C: 'teal3',       // #36908f
-  F: 'silver',      // fin
+  B: 'teal2',       // limp pale body
+  L: 'silver',      // limp belly
+  T: 'teal4',       // limp dark back
+  K: 'teal5',       // shadow
+  E: 'cream',       // sclera ring
+  P: 'outline',     // limp X eye
+  H: 'teal1',       // dull glint
+  F: 'silver',      // limp fins
+  S: 'teal4',       // limp rays
+  M: 'outline',     // slack mouth
+  l: 'teal2',       // lateral line
+  d: 'teal4',       // scale dither
+  J: 'silver',      // pattern
 };
 
 const C_COIN: Record<string, PaletteKey> = {
@@ -588,433 +720,425 @@ const C_COIN: Record<string, PaletteKey> = {
 };
 
 // ----------------------------------------------------------------------------
-// PROCEDURAL Goldfish Grid Generators (Keep exact widths & heights)
-// Size 0: 14x10, Size 1: 19x13, Size 2: 25x17
+// PROCEDURAL FANCY GUPPY GENERATORS
+// Consistent body plan that grows from fry (14x10) -> juvenile (19x13) -> adult (25x17)
+// Anatomy rules:
+// - Fusiform body narrowing into caudal peduncle
+// - Counter-shading (dark back, light belly)
+// - Terminal mouth drawn as 1px line that opens for 0.15s while eating
+// - Eye in upper third of head, 1/3 back from snout (1px sclera ring, 1px pupil, 1px glint, no eyelid blink)
+// - Curved 1px operculum line with darker rim behind eye, pulses 1px every 1.5s
+// - Pectoral fin at ~35% body length mid-flank (2-frame flutter)
+// - Smaller pelvic fin under it at ~40%
+// - Dorsal fin spanning ~30-70% (spiny front rays, soft rear rays with 1px ray lines that ripple)
+// - Anal fin at ~55-75% mirroring soft dorsal
+// - Caudal fin at 100% with ray lines on a 4-frame cycle
+// - Faint dotted lateral line from size 1; 2x2 scale dither on flank at size 2 only
+// - Hungry fish fold fins flat and dull; dying fish go limp with X eyes (all in same dimensions)
 // ----------------------------------------------------------------------------
-function buildFish0Grid(state: string, tailFrame: number, pecFrame: number, isBlinking: boolean, isEating: boolean): string[] {
-  const grid = [
-    '..............',
-    '........TTTT..',
-    '......TTTTTT..',
-    '.....TBBBBBB..',
-    '....TBBBBBBBB.',
-    '....LBBBBBBBB.',
-    '.....LLLLLLLL.',
-    '......LLLLLL..',
-    '.......FFF....',
-    '..............',
-  ].map(row => row.split(''));
 
-  const tailFrames = [
-    [
-      '....FF',
-      '..FFFF',
-      '.FFFFF',
-      'FFFFFF',
-      '.FFFFF',
-      '..FFFF',
-      '...FFF',
-      '....F.',
-      '......',
-      '......',
-    ],
-    [
-      '......',
-      '....FF',
-      '..FFFF',
-      '.FFFFF',
-      'FFFFFF',
-      '.FFFFF',
-      '..FFFF',
-      '...FFF',
-      '....F.',
-      '......',
-    ],
-    [
-      '......',
-      '......',
-      '....F.',
-      '...FFF',
-      '..FFFF',
-      '.FFFFF',
-      'FFFFFF',
-      '.FFFFF',
-      '..FFFF',
-      '....FF',
-    ],
-    [
-      '......',
-      '....F.',
-      '...FFF',
-      '..FFFF',
-      '.FFFFF',
-      'FFFFFF',
-      '.FFFFF',
-      '..FFFF',
-      '....FF',
-      '......',
-    ],
-  ];
+function buildFish0Grid(
+  state: 'normal' | 'hungry' | 'dying',
+  tailFrame: number,
+  pecFrame: number,
+  dorsalRipple: number,
+  gillPulse: boolean,
+  isEating: boolean
+): string[] {
+  // 14 wide x 10 high
+  const grid: string[][] = Array.from({ length: 10 }, () => Array(14).fill('.'));
 
-  const tail = tailFrames[tailFrame % 4];
-  for (let r = 0; r < 10; r++) {
-    for (let c = 0; c < 6; c++) {
-      if (tail[r][c] === 'F') {
-        let targetRow = r;
-        if (state === 'hungry') {
-          targetRow = Math.min(9, r + 1); // Drooping tail fin when hungry
-        }
-        grid[targetRow][c] = 'F';
-      }
-    }
+  // 1. Fusiform body narrowing into caudal peduncle (cols 3..12)
+  // Counter-shading: rows 1..3 dark back (T), rows 4..5 mid-flank (B), rows 6..7 light belly (L)
+  const isHungry = state === 'hungry';
+  const isDying = state === 'dying';
+
+  // Caudal peduncle (cols 3..4)
+  grid[4][3] = 'T'; grid[5][3] = 'B';
+  grid[3][4] = 'T'; grid[4][4] = 'B'; grid[5][4] = 'B'; grid[6][4] = 'L';
+
+  // Main flank (cols 5..9)
+  for (let c = 5; c <= 9; c++) {
+    grid[2][c] = 'T';
+    grid[3][c] = 'T';
+    grid[4][c] = 'B';
+    grid[5][c] = 'B';
+    grid[6][c] = 'L';
+  }
+  grid[7][6] = 'L'; grid[7][7] = 'L'; grid[7][8] = 'L';
+
+  // Head (cols 10..12)
+  grid[2][10] = 'T'; grid[2][11] = 'T';
+  grid[3][10] = 'T'; grid[3][11] = 'T'; grid[3][12] = 'T';
+  grid[4][10] = 'B'; grid[4][11] = 'B'; grid[4][12] = 'B';
+  grid[5][10] = 'B'; grid[5][11] = 'B'; grid[5][12] = 'B';
+  grid[6][10] = 'L'; grid[6][11] = 'L';
+
+  // 2. Terminal mouth (col 13): 1px line that opens for 0.15s while eating
+  if (!isEating) {
+    grid[4][13] = 'M';
+    grid[5][13] = 'M';
+  } else {
+    // 1px open gap
+    grid[3][13] = 'M';
+    grid[6][13] = 'M';
   }
 
-  // 2-Frame pectoral flutter
+  // 3. Eye in upper third of head, 1/3 back from snout (cols 10..11, rows 3..4)
+  // Fry has proportionally large eye (1px sclera ring, 1px pupil, 1px glint, no eyelid blink)
+  if (isDying) {
+    // Limp with X eyes
+    grid[3][10] = 'P'; grid[3][11] = '.';
+    grid[4][10] = '.'; grid[4][11] = 'P';
+  } else {
+    grid[3][10] = 'E'; grid[3][11] = 'H';
+    grid[4][10] = 'E'; grid[4][11] = 'P';
+  }
+
+  // 4. Operculum: curved 1px line with darker rim behind eye (col 8..9). Pulses 1px every 1.5s
+  const gillCol = gillPulse ? 8 : 9;
+  grid[3][gillCol] = 'K';
+  grid[4][gillCol] = 'T';
+  grid[5][gillCol] = 'K';
+
+  // 5. Dorsal fin: short fry dorsal spanning ~30-70% (cols 5..8, row 1..2)
+  if (!isHungry) {
+    grid[1][5] = 'S'; grid[1][6] = 'F'; grid[1][7] = 'F';
+    if (dorsalRipple > 0) grid[1][8] = 'F';
+  } else {
+    // Folded flat when hungry
+    grid[2][6] = 'S'; grid[2][7] = 'F';
+  }
+
+  // 6. Anal fin: cols 4..6, row 7..8
+  if (!isHungry) {
+    grid[7][5] = 'F'; grid[8][5] = 'F';
+  }
+
+  // 7. Pectoral fin: at ~35% body length (col 7..8, row 5..6, 2-frame flutter)
   if (pecFrame === 0) {
+    grid[5][7] = 'F'; grid[5][8] = 'F';
+  } else {
     grid[6][7] = 'F'; grid[6][8] = 'F';
-    grid[7][7] = 'F'; grid[7][8] = 'F';
-  } else {
-    grid[7][6] = 'F'; grid[7][7] = 'F';
-    grid[8][7] = 'F'; grid[8][8] = 'F';
   }
 
-  // Drooping top fin when hungry
-  if (state === 'hungry') {
-    grid[1][7] = '.'; grid[1][8] = '.';
-    grid[2][6] = 'T'; grid[2][7] = 'T';
-  }
-
-  grid[1][6] = 'T';
-  grid[2][5] = 'T';
-  grid[3][5] = 'B';
-  grid[4][5] = 'B';
-  grid[5][5] = 'B';
-
-  // 1px vertical gill line
-  grid[3][9] = 'T';
-  grid[4][9] = 'T';
-  grid[5][9] = 'T';
-
-  // Eye with blink / dying state
-  if (state === 'dying') {
-    grid[3][11] = 'P'; grid[3][12] = '.';
-    grid[4][11] = '.'; grid[4][12] = 'P';
-  } else if (isBlinking) {
-    grid[3][11] = 'T'; grid[3][12] = 'T';
-    grid[4][11] = 'B'; grid[4][12] = 'B';
-  } else {
-    grid[2][12] = 'H';
-    grid[3][11] = 'E'; grid[3][12] = 'P';
-    grid[4][11] = 'C'; grid[4][12] = 'E';
-  }
-
-  // Mouth open (eating) or closed
-  if (isEating) {
-    grid[4][13] = '.';
-    grid[5][13] = '.';
-  } else {
-    grid[4][13] = 'B';
-    grid[5][13] = 'B';
-  }
+  // 8. Caudal fin: short rounded tail (fry) with 4-frame cycle (cols 0..3)
+  const caudalFrames = [
+    // Frame 0: center wave
+    [[3,1],[4,0],[4,1],[4,2],[5,0],[5,1],[5,2],[6,1]],
+    // Frame 1: wave up
+    [[2,1],[3,0],[3,1],[4,0],[4,1],[4,2],[5,1],[5,2]],
+    // Frame 2: center wave
+    [[3,1],[4,0],[4,1],[4,2],[5,0],[5,1],[5,2],[6,1]],
+    // Frame 3: wave down
+    [[4,1],[4,2],[5,0],[5,1],[5,2],[6,0],[6,1],[7,1]],
+  ];
+  const cPts = caudalFrames[tailFrame % 4];
+  cPts.forEach(([r, c]) => {
+    const targetR = isHungry ? Math.min(9, r + 1) : r;
+    if (targetR >= 0 && targetR < 10 && c >= 0 && c < 14) {
+      grid[targetR][c] = 'F';
+    }
+  });
 
   return grid.map(row => row.join(''));
 }
 
-function buildFish1Grid(state: string, tailFrame: number, pecFrame: number, isBlinking: boolean, isEating: boolean): string[] {
-  const grid = [
-    '...................',
-    '..........TTTTT....',
-    '........TTTTTTTT...',
-    '......TTTTTTTTTTT..',
-    '.....TTTBBBBBBBBB..',
-    '....TBBBBBBBBBBBBB.',
-    '....LBBBBBBBBBBBBB.',
-    '....LBBBBBBBBBBBBB.',
-    '.....LLLLLLLLLLLLL.',
-    '......LLLLLLLLLLL..',
-    '.......LLLLLLLLL...',
-    '.........FFFFF.....',
-    '...................',
-  ].map(row => row.split(''));
+function buildFish1Grid(
+  state: 'normal' | 'hungry' | 'dying',
+  tailFrame: number,
+  pecFrame: number,
+  dorsalRipple: number,
+  gillPulse: boolean,
+  isEating: boolean
+): string[] {
+  // 19 wide x 13 high
+  const grid: string[][] = Array.from({ length: 13 }, () => Array(19).fill('.'));
+  const isHungry = state === 'hungry';
+  const isDying = state === 'dying';
 
-  const tailFrames = [
-    [
-      '.........',
-      '.....FF..',
-      '...FFFF..',
-      '.FFFFFF..',
-      'FFFFFFF..',
-      '.FFFFFF..',
-      '..FFFFF..',
-      '...FFF...',
-      '....F....',
-      '.........',
-      '.........',
-      '.........',
-      '.........',
-    ],
-    [
-      '.........',
-      '.........',
-      '.....FF..',
-      '...FFFF..',
-      '.FFFFFF..',
-      'FFFFFFF..',
-      '.FFFFFF..',
-      '..FFFFF..',
-      '...FFF...',
-      '....F....',
-      '.........',
-      '.........',
-      '.........',
-    ],
-    [
-      '.........',
-      '.........',
-      '.........',
-      '....F....',
-      '...FFF...',
-      '..FFFFF..',
-      '.FFFFFF..',
-      'FFFFFFF..',
-      '.FFFFFF..',
-      '...FFFF..',
-      '.....FF..',
-      '.........',
-      '.........',
-    ],
-    [
-      '.........',
-      '.........',
-      '....F....',
-      '...FFF...',
-      '..FFFFF..',
-      '.FFFFFF..',
-      'FFFFFFF..',
-      '.FFFFFF..',
-      '..FFFFF..',
-      '...FFF...',
-      '....F....',
-      '.........',
-      '.........',
-    ],
-  ];
+  // 1. Fusiform body with caudal peduncle (cols 4..17)
+  // Caudal peduncle (cols 4..6)
+  grid[5][4] = 'T'; grid[6][4] = 'B'; grid[7][4] = 'L';
+  grid[4][5] = 'T'; grid[5][5] = 'T'; grid[6][5] = 'B'; grid[7][5] = 'L';
+  grid[4][6] = 'T'; grid[5][6] = 'T'; grid[6][6] = 'B'; grid[7][6] = 'B'; grid[8][6] = 'L';
 
-  const tail = tailFrames[tailFrame % 4];
-  for (let r = 0; r < 13; r++) {
-    for (let c = 0; c < 9; c++) {
-      if (tail[r][c] === 'F') {
-        let targetRow = r;
-        if (state === 'hungry') {
-          targetRow = Math.min(12, r + 1);
-        }
-        grid[targetRow][c] = 'F';
-      }
-    }
+  // Mid-flank (cols 7..13)
+  for (let c = 7; c <= 13; c++) {
+    grid[2][c] = 'T';
+    grid[3][c] = 'T';
+    grid[4][c] = 'T';
+    grid[5][c] = 'B';
+    grid[6][c] = 'B';
+    grid[7][c] = 'B';
+    grid[8][c] = 'L';
+    grid[9][c] = 'L';
+  }
+  grid[10][8] = 'L'; grid[10][9] = 'L'; grid[10][10] = 'L';
+
+  // Head (cols 14..17)
+  for (let c = 14; c <= 17; c++) {
+    grid[3][c] = 'T';
+    grid[4][c] = 'T';
+    grid[5][c] = 'B';
+    grid[6][c] = 'B';
+    grid[7][c] = 'B';
+    if (c <= 16) grid[8][c] = 'L';
   }
 
-  // Pectoral flutter
+  // 2. Terminal mouth (col 18): 1px line that opens for 0.15s while eating
+  if (!isEating) {
+    grid[5][18] = 'M';
+    grid[6][18] = 'M';
+  } else {
+    grid[4][18] = 'M';
+    grid[7][18] = 'M';
+  }
+
+  // 3. Eye: upper third of head, 1/3 back from snout (cols 14..15, rows 3..4)
+  if (isDying) {
+    grid[3][14] = 'P'; grid[3][15] = '.';
+    grid[4][14] = '.'; grid[4][15] = 'P';
+  } else {
+    grid[3][14] = 'E'; grid[3][15] = 'H';
+    grid[4][14] = 'E'; grid[4][15] = 'P';
+  }
+
+  // 4. Operculum: curved 1px line with darker rim behind eye (col 12..13). Pulses 1px every 1.5s
+  const gillCol = gillPulse ? 12 : 13;
+  grid[4][gillCol] = 'K';
+  grid[5][gillCol] = 'T';
+  grid[6][gillCol] = 'T';
+  grid[7][gillCol] = 'K';
+
+  // 5. Faint dotted lateral line from operculum to peduncle (col 6..12, row 6)
+  for (let c = 6; c <= 12; c += 2) {
+    grid[6][c] = 'l';
+  }
+
+  // Juvenile pattern bars
+  grid[5][8] = 'J'; grid[5][10] = 'J';
+  grid[7][9] = 'J'; grid[7][11] = 'J';
+
+  // 6. Dorsal fin: spanning ~30-70% (cols 7..13, rows 1..3)
+  // Spiny front rays (S), soft rear rays with 1px ray lines that ripple
+  if (!isHungry) {
+    grid[1][7] = 'S'; grid[1][8] = 'S';
+    grid[1][9] = 'F'; grid[1][10] = 'F'; grid[1][11] = 'F';
+    grid[0][9] = dorsalRipple === 0 ? 'F' : '.';
+    grid[0][10] = dorsalRipple === 1 ? 'F' : '.';
+    grid[0][11] = dorsalRipple === 2 ? 'F' : '.';
+  } else {
+    // Folded flat when hungry
+    grid[2][8] = 'S'; grid[2][9] = 'F'; grid[2][10] = 'F';
+  }
+
+  // 7. Pectoral fin: mid-flank at ~35% body length (cols 10..11, rows 7..8, 2-frame flutter)
   if (pecFrame === 0) {
-    grid[8][9] = 'F'; grid[8][10] = 'F';
-    grid[9][9] = 'F'; grid[9][10] = 'F';
+    grid[7][10] = 'F'; grid[7][11] = 'F';
+    grid[8][10] = 'F';
   } else {
-    grid[9][8] = 'F'; grid[9][9] = 'F';
-    grid[10][9] = 'F'; grid[10][10] = 'F';
+    grid[8][10] = 'F'; grid[8][11] = 'F';
+    grid[9][10] = 'F';
   }
 
-  // 1px Gill line
-  grid[4][13] = 'T';
-  grid[5][13] = 'T';
-  grid[6][13] = 'T';
-  grid[7][13] = 'T';
-  grid[8][13] = 'T';
+  // 8. Pelvic fin under pectoral at ~40% (cols 9..10, rows 9..10)
+  grid[9][9] = 'F'; grid[10][9] = 'F';
 
-  // 2 Stripes: cols 10 and 12, rows 3 to 7
-  for (let r = 3; r <= 7; r++) {
-    grid[r][10] = 'L';
-    grid[r][12] = 'L';
+  // 9. Anal fin: cols 6..9, rows 9..11 mirroring soft dorsal
+  if (!isHungry) {
+    grid[9][6] = 'F'; grid[10][6] = 'F';
+    grid[9][7] = 'F'; grid[10][7] = 'F'; grid[11][7] = 'F';
   }
 
-  // Eye
-  if (state === 'dying') {
-    grid[4][15] = 'P'; grid[4][16] = '.';
-    grid[5][15] = '.'; grid[5][16] = 'P';
-  } else if (isBlinking) {
-    grid[4][15] = 'T'; grid[4][16] = 'T';
-    grid[5][15] = 'B'; grid[5][16] = 'B';
-  } else {
-    grid[3][16] = 'H';
-    grid[4][15] = 'E'; grid[4][16] = 'P';
-    grid[5][15] = 'C'; grid[5][16] = 'E';
-  }
-
-  // Mouth
-  if (isEating) {
-    grid[5][18] = '.';
-    grid[6][18] = '.';
-  } else {
-    grid[5][18] = 'B';
-    grid[6][18] = 'B';
-  }
+  // 10. Caudal fin: ray lines on 4-frame cycle (cols 0..4)
+  const caudalFrames = [
+    // Frame 0
+    [[3,3],[4,2],[4,3],[5,1],[5,2],[6,0],[6,1],[6,2],[7,1],[7,2],[8,2],[8,3],[9,3]],
+    // Frame 1
+    [[2,3],[3,2],[3,3],[4,1],[4,2],[5,0],[5,1],[5,2],[6,1],[6,2],[7,2],[8,3],[9,3]],
+    // Frame 2
+    [[3,3],[4,2],[4,3],[5,1],[5,2],[6,0],[6,1],[6,2],[7,1],[7,2],[8,2],[8,3],[9,3]],
+    // Frame 3
+    [[4,3],[5,3],[6,2],[7,1],[7,2],[8,0],[8,1],[8,2],[9,1],[9,2],[10,2],[10,3],[11,3]],
+  ];
+  const cPts = caudalFrames[tailFrame % 4];
+  cPts.forEach(([r, c]) => {
+    const targetR = isHungry ? Math.min(12, r + 1) : r;
+    if (targetR >= 0 && targetR < 13 && c >= 0 && c < 19) {
+      grid[targetR][c] = (c % 2 === 0) ? 'F' : 'J';
+    }
+  });
 
   return grid.map(row => row.join(''));
 }
 
-function buildFish2Grid(state: string, tailFrame: number, pecFrame: number, isBlinking: boolean, isEating: boolean): string[] {
-  const grid = [
-    '.........................',
-    '...........TT.TT.TT......',
-    '..........TTTTTTTTTT.....',
-    '.......TTTTTTTTTTTTTT....',
-    '......TTTBBBBBBBBBBTT....',
-    '.....TTBBBBBBBBBBBBBB....',
-    '....TTTBBBBBBBBBBBBBBB...',
-    '....LBBBBBBBBBBBBBBBBBB..',
-    '....LBBBBBBBBBBBBBBBBBBB.',
-    '....LBBBBBBBBBBBBBBBBBBB.',
-    '.....LLLLLLLLLLLLLLLLLLL.',
-    '......LLLLLLLLLLLLLLLLL..',
-    '.......LLLLLLLLLLLLLLLL..',
-    '.........LLLLLLLLLLLLL...',
-    '...........LLLLLLLLLL....',
-    '.............FFFFFF......',
-    '.........................',
-  ].map(row => row.split(''));
+function buildFish2Grid(
+  state: 'normal' | 'hungry' | 'dying',
+  tailFrame: number,
+  pecFrame: number,
+  dorsalRipple: number,
+  gillPulse: boolean,
+  isEating: boolean
+): string[] {
+  // 25 wide x 17 high
+  const grid: string[][] = Array.from({ length: 17 }, () => Array(25).fill('.'));
+  const isHungry = state === 'hungry';
+  const isDying = state === 'dying';
 
-  const tailFrames = [
-    [
-      '............',
-      '............',
-      '............',
-      '............',
-      '....F.......',
-      '..FFFF......',
-      '.FFFFFF.....',
-      'FFFFFFFF....',
-      'FFFFFFFF....',
-      'FFFFFFFF....',
-      '.FFFFFFF....',
-      '..FFFFFF....',
-      '...FFFF.....',
-      '.....F......',
-      '............',
-      '............',
-      '............',
-    ],
-    [
-      '............',
-      '............',
-      '............',
-      '............',
-      '............',
-      '....F.......',
-      '..FFFF......',
-      '.FFFFFF.....',
-      'FFFFFFFF....',
-      'FFFFFFFF....',
-      'FFFFFFFF....',
-      '.FFFFFFF....',
-      '..FFFFFF....',
-      '...FFFF.....',
-      '.....F......',
-      '............',
-      '............',
-    ],
-    [
-      '............',
-      '............',
-      '............',
-      '.....F......',
-      '...FFFF.....',
-      '..FFFFFF....',
-      '.FFFFFFF....',
-      'FFFFFFFF....',
-      'FFFFFFFF....',
-      'FFFFFFFF....',
-      '.FFFFFF.....',
-      '..FFFF......',
-      '....F.......',
-      '............',
-      '............',
-      '............',
-      '............',
-    ],
-    [
-      '............',
-      '............',
-      '............',
-      '............',
-      '.....F......',
-      '...FFFF.....',
-      '..FFFFFF....',
-      '.FFFFFFF....',
-      'FFFFFFFF....',
-      'FFFFFFFF....',
-      'FFFFFFFF....',
-      '.FFFFFF.....',
-      '..FFFF......',
-      '....F.......',
-      '............',
-      '............',
-      '............',
-    ],
-  ];
+  // 1. Fusiform body narrowing into caudal peduncle (cols 6..23)
+  // Caudal peduncle (cols 6..8)
+  for (let c = 6; c <= 8; c++) {
+    grid[6][c] = 'T';
+    grid[7][c] = 'T';
+    grid[8][c] = 'B';
+    grid[9][c] = 'B';
+    grid[10][c] = 'L';
+  }
 
-  const tail = tailFrames[tailFrame % 4];
-  for (let r = 0; r < 17; r++) {
-    for (let c = 0; c < 12; c++) {
-      if (tail[r][c] === 'F') {
-        let targetRow = r;
-        if (state === 'hungry') {
-          targetRow = Math.min(16, r + 1);
-        }
-        grid[targetRow][c] = 'F';
+  // Mid-flank (cols 9..18)
+  for (let c = 9; c <= 18; c++) {
+    grid[3][c] = 'T';
+    grid[4][c] = 'T';
+    grid[5][c] = 'T';
+    grid[6][c] = 'B';
+    grid[7][c] = 'B';
+    grid[8][c] = 'B';
+    grid[9][c] = 'B';
+    grid[10][c] = 'L';
+    grid[11][c] = 'L';
+    grid[12][c] = 'L';
+  }
+  grid[13][11] = 'L'; grid[13][12] = 'L'; grid[13][13] = 'L';
+
+  // Head (cols 19..23)
+  for (let c = 19; c <= 23; c++) {
+    grid[4][c] = 'T';
+    grid[5][c] = 'T';
+    grid[6][c] = 'B';
+    grid[7][c] = 'B';
+    grid[8][c] = 'B';
+    grid[9][c] = 'B';
+    if (c <= 22) { grid[10][c] = 'L'; grid[11][c] = 'L'; }
+  }
+
+  // 2. Terminal mouth (col 24): 1px line that opens for 0.15s while eating
+  if (!isEating) {
+    grid[7][24] = 'M';
+    grid[8][24] = 'M';
+  } else {
+    grid[6][24] = 'M';
+    grid[9][24] = 'M';
+  }
+
+  // 3. Eye: upper third of head, 1/3 back from snout (cols 19..20, rows 4..5)
+  // 1px sclera ring, 1px pupil, 1px glint, NO eyelid blink
+  if (isDying) {
+    grid[4][19] = 'P'; grid[4][20] = '.';
+    grid[5][19] = '.'; grid[5][20] = 'P';
+  } else {
+    grid[4][19] = 'E'; grid[4][20] = 'H';
+    grid[5][19] = 'E'; grid[5][20] = 'P';
+  }
+
+  // 4. Operculum: curved 1px line with darker rim behind eye (cols 17..18). Pulses 1px every 1.5s
+  const gillCol = gillPulse ? 17 : 18;
+  grid[5][gillCol] = 'K';
+  grid[6][gillCol] = 'T';
+  grid[7][gillCol] = 'T';
+  grid[8][gillCol] = 'T';
+  grid[9][gillCol] = 'K';
+
+  // 5. Faint dotted lateral line from operculum to peduncle (cols 8..17, row 8)
+  for (let c = 8; c <= 16; c += 2) {
+    grid[8][c] = 'l';
+  }
+
+  // 6. 2x2 scale checker dither on the flank at size 2 ONLY (cols 11..16, rows 6..10)
+  for (let r = 6; r <= 10; r++) {
+    for (let c = 11; c <= 16; c++) {
+      if ((r + c) % 2 === 0) {
+        grid[r][c] = 'd';
       }
     }
   }
 
-  // Pectoral flutter
+  // Full guppy adult pattern swirls
+  grid[5][11] = 'J'; grid[5][13] = 'J'; grid[5][15] = 'J';
+  grid[7][10] = 'J'; grid[7][12] = 'J'; grid[7][14] = 'J';
+  grid[9][11] = 'J'; grid[9][13] = 'J'; grid[9][15] = 'J';
+
+  // 7. Magnificent Sail Dorsal Fin spanning ~30-70% (cols 8..18, rows 0..3)
+  // Spiny front rays (S), soft rear rays (F) shown as 1px ray lines that ripple when moving
+  if (!isHungry) {
+    grid[2][8] = 'S'; grid[1][9] = 'S'; grid[0][10] = 'S';
+    for (let c = 11; c <= 17; c++) {
+      grid[1][c] = 'F';
+      grid[2][c] = 'F';
+    }
+    // Rippling dorsal tip
+    const ripOffset = dorsalRipple;
+    if (11 + ripOffset <= 18) grid[0][11 + ripOffset] = 'F';
+    if (14 + ripOffset <= 18) grid[0][14 + ripOffset] = 'F';
+  } else {
+    // Folded flat and dull when hungry
+    for (let c = 10; c <= 16; c++) {
+      grid[3][c] = 'S';
+    }
+  }
+
+  // 8. Pectoral fin: at ~35% body length (cols 13..15, rows 9..11, 2-frame flutter)
   if (pecFrame === 0) {
-    grid[11][10] = 'F'; grid[11][11] = 'F';
-    grid[12][10] = 'F'; grid[12][11] = 'F';
+    grid[9][13] = 'F'; grid[9][14] = 'F';
+    grid[10][13] = 'F'; grid[10][14] = 'F';
+    grid[11][13] = 'F';
   } else {
-    grid[12][9] = 'F'; grid[12][10] = 'F';
-    grid[13][10] = 'F'; grid[13][11] = 'F';
+    grid[10][13] = 'F'; grid[10][14] = 'F';
+    grid[11][13] = 'F'; grid[11][14] = 'F';
+    grid[12][13] = 'F';
   }
 
-  // 1px Gill line
-  for (let r = 5; r <= 11; r++) {
-    grid[r][18] = 'T';
+  // 9. Pelvic fin: under pectoral at ~40% (cols 12..14, rows 12..14)
+  grid[12][12] = 'F'; grid[13][12] = 'F'; grid[14][12] = 'F';
+
+  // 10. Anal fin: cols 8..12, rows 12..15 mirroring soft dorsal
+  if (!isHungry) {
+    grid[12][8] = 'F'; grid[13][8] = 'F';
+    grid[13][9] = 'F'; grid[14][9] = 'F';
+    grid[13][10] = 'F'; grid[14][10] = 'F'; grid[15][10] = 'F';
+    grid[13][11] = 'F'; grid[14][11] = 'F';
   }
 
-  // 3 Stripes: cols 13, 15, and 17, rows 4 to 9
-  for (let r = 4; r <= 9; r++) {
-    grid[r][13] = 'L';
-    grid[r][15] = 'L';
-    grid[r][17] = 'L';
-  }
-
-  // Eye
-  if (state === 'dying') {
-    grid[6][21] = 'P'; grid[6][22] = '.';
-    grid[7][21] = '.'; grid[7][22] = 'P';
-  } else if (isBlinking) {
-    grid[6][21] = 'T'; grid[6][22] = 'T';
-    grid[7][21] = 'B'; grid[7][22] = 'B';
-  } else {
-    grid[5][22] = 'H';
-    grid[6][21] = 'E'; grid[6][22] = 'P';
-    grid[7][21] = 'C'; grid[7][22] = 'E';
-  }
-
-  // Mouth
-  if (isEating) {
-    grid[7][24] = '.';
-    grid[8][24] = '.';
-  } else {
-    grid[7][24] = 'B';
-    grid[8][24] = 'B';
-  }
+  // 11. Fan tail caudal fin at 100% (cols 0..6, rows 1..15) with full pattern and 1px ray lines (4-frame cycle)
+  const caudalFrames = [
+    // Frame 0
+    [
+      [2,5],[3,4],[3,5],[4,3],[4,4],[4,5],[5,2],[5,3],[5,4],[6,1],[6,2],[6,3],[7,0],[7,1],[7,2],[7,3],
+      [8,0],[8,1],[8,2],[8,3],[9,0],[9,1],[9,2],[9,3],[10,1],[10,2],[10,3],[11,2],[11,3],[11,4],[12,3],[12,4],[13,5]
+    ],
+    // Frame 1
+    [
+      [1,5],[2,4],[2,5],[3,3],[3,4],[3,5],[4,2],[4,3],[4,4],[5,1],[5,2],[5,3],[6,0],[6,1],[6,2],[6,3],
+      [7,0],[7,1],[7,2],[7,3],[8,0],[8,1],[8,2],[8,3],[9,1],[9,2],[9,3],[10,2],[10,3],[11,3],[11,4],[12,5]
+    ],
+    // Frame 2
+    [
+      [2,5],[3,4],[3,5],[4,3],[4,4],[4,5],[5,2],[5,3],[5,4],[6,1],[6,2],[6,3],[7,0],[7,1],[7,2],[7,3],
+      [8,0],[8,1],[8,2],[8,3],[9,0],[9,1],[9,2],[9,3],[10,1],[10,2],[10,3],[11,2],[11,3],[11,4],[12,3],[12,4],[13,5]
+    ],
+    // Frame 3
+    [
+      [3,5],[4,4],[4,5],[5,3],[5,4],[6,2],[6,3],[7,1],[7,2],[8,0],[8,1],[8,2],[8,3],[9,0],[9,1],[9,2],[9,3],
+      [10,0],[10,1],[10,2],[10,3],[11,1],[11,2],[11,3],[12,2],[12,3],[13,3],[13,4],[14,4],[14,5],[15,5]
+    ],
+  ];
+  const cPts = caudalFrames[tailFrame % 4];
+  cPts.forEach(([r, c]) => {
+    const targetR = isHungry ? Math.min(16, r + 1) : r;
+    if (targetR >= 0 && targetR < 17 && c >= 0 && c < 25) {
+      grid[targetR][c] = (c % 2 === 0) ? 'F' : 'J';
+    }
+  });
 
   return grid.map(row => row.join(''));
 }
@@ -1032,9 +1156,6 @@ function applyDitherStep(canvas: HTMLCanvasElement, step: number): HTMLCanvasEle
   ctx.drawImage(canvas, 0, 0);
 
   // 2x2 Bayer dither clear:
-  // Step 1: clear (x%2==0 && y%2==0) -> 25% cleared, 75% remains
-  // Step 2: clear ((x+y)%2==0) -> 50% cleared, 50% remains
-  // Step 3: clear !(x%2==1 && y%2==1) -> 75% cleared, 25% remains
   for (let y = 0; y < canvas.height; y++) {
     for (let x = 0; x < canvas.width; x++) {
       let clear = false;
@@ -1078,31 +1199,42 @@ function bakeSilhouette(sprite: HTMLCanvasElement, color: string): HTMLCanvasEle
   return sCanvas;
 }
 
+// ----------------------------------------------------------------------------
+// REWARD FISH SPECIES PALETTE & DEFINITIONS
+// 10 real species, each with its own distinctive silhouette (not palette swaps!).
+// Reward fish 18x12 with Dot at 16 wide. Max 16 colors per sprite.
+// ----------------------------------------------------------------------------
 const C_SPECIES: Record<string, PaletteKey> = {
-  X: 'outline',
-  O: 'orange3',
-  d: 'orange4',
-  c: 'coral3',
-  b: 'orange2',
-  g: 'leaf2',
-  l: 'gold2',
-  w: 'teal1',
-  m: 'teal2',
-  u: 'teal4',
-  k: 'teal5',
-  s: 'sand2',
-  h: 'sand4',
-  y: 'gold3',
-  v: 'silver',
-  r: 'diamond',
-  G: 'leaf2',
-  D: 'leaf4',
-  P: 'purple3',
-  K: 'purple4',
-  t: 'sand3',
-  B: 'wood4',
-  e: 'cream',
-  W: 'white',
+  X: 'outline',     // Outline / dark rim / black bands / pupil
+  W: 'white',       // Pure white / band centers / glint / scalpel spine
+  e: 'cream',       // Sclera / pale belly / cream stripes
+  O: 'orange3',     // Clownfish & lionfish base orange
+  o: 'orange2',     // Light orange belly
+  d: 'orange4',     // Orange shade
+  u: 'blue3',       // Blue tang & lanternfish cobalt body
+  U: 'blue4',       // Deep cobalt shade
+  i: 'blue2',       // Light cobalt
+  I: 'blue1',       // Ice mint highlight
+  y: 'gold3',       // Yellow tail / photophore / angelfish gold
+  Y: 'gold2',       // Pale lemon / glowing photophore / light gold
+  j: 'gold4',       // Gold shade / beak plate
+  b: 'wood4',       // Puffer brown spots / angelfish brown
+  s: 'sand2',       // Sand / translucent fin
+  c: 'coral3',      // Lionfish red-orange
+  C: 'coral2',      // Light coral
+  m: 'coral4',      // Deep coral shade
+  p: 'pink3',       // Mandarinfish vivid pink
+  P: 'purple3',     // Eagle ray violet / wrasse eye lines
+  K: 'purple4',     // Deep violet shade
+  k: 'purple5',     // Dark violet outline
+  r: 'diamond',     // Mandarinfish cyan swirl / eagle ray edge glow
+  w: 'teal1',       // Ice mint / cyan highlight
+  t: 'teal3',       // Wrasse blue-green body
+  T: 'teal2',       // Light blue-green
+  g: 'leaf2',       // Lime tint
+  G: 'leaf3',       // Green shade
+  v: 'silver',      // Veiltail silver
+  V: 'sand1',       // Veiltail ivory pearl
 };
 
 function bakeSpeciesSprite(
@@ -1138,350 +1270,680 @@ function bakeSpeciesSprite(
   };
 }
 
-
-// 18x12 Grids for 10 unique species
+// ----------------------------------------------------------------------------
+// 1. PIP - Clownfish (18x12)
+// Stocky oval, rounded tail, orange with three white bands (head, mid-body with
+// forward bulge, tail base) each band edged in near-black, black-edged fins,
+// notched fused dorsal.
+// ----------------------------------------------------------------------------
 const GRID_PIP_F0 = [
-  '.....XXXXX........',
-  '....XOeeOX........',
-  '..XXXOeeOXXXX.....',
-  '.XOWWXOOXXWWXX..XX',
-  'XOWWWOOOOWWWWOXXXd',
-  'XOWWWOOOOWWWWOXXdd',
-  'XOOOOOOOOOOOOOXXd.',
-  'XOOOOOOOOOOOOOOX..',
-  '.XOOOOOOOddddXX...',
-  '..XXdddddXXXX.....',
-  '....XXXXX.........',
-  '..................'
+  '......XX..XX......',
+  '....XXddXXddXX....',
+  '...XddddXddddX....',
+  '..XOOXWWXOOOOXWWX.',
+  '.XOOOXWWXOOOWXWWX.',
+  'XOWXOOXWWXOWWXOOX.',
+  'XWWXOOXWWXOWWXOOX.',
+  'XOWXOOXWWXOOOOXOX.',
+  '.XOOXXWWXXOOOOXX..',
+  '..XooXWWXooooX....',
+  '...XXooXXooooX....',
+  '....XXXXXXXX......',
 ];
 const GRID_PIP_F1 = [
-  '.....XXXXX........',
-  '....XOeeOX........',
-  '..XXXOeeOXXXX.....',
-  '.XOWWXOOXXWWXX....',
-  'XOWWWOOOOWWWWOXX..',
-  'XOWWWOOOOWWWWOXXdd',
-  'XOOOOOOOOOOOOOXXXd',
-  'XOOOOOOOOOOOOOOXXd',
-  '.XOOOOOOOddddXX...',
-  '..XXdddddXXXX.....',
-  '....XXXXX.........',
-  '..................'
+  '......XX..XX......',
+  '....XXddXXddXX....',
+  '..XXddddXddddX....',
+  '.XOOXWWXXOOOOXWWX.',
+  'XOOOXWWXOOOWXWWX..',
+  'XWWXOOXWWXOWWXOOX.',
+  'XWWXOOXWWXOWWXOOX.',
+  '.XOWXOOXWWXOOOOXOX',
+  '..XOOXXWWXXOOOOXX.',
+  '...XooXWWXooooX...',
+  '....XXooXXooooX...',
+  '.....XXXXXXXX.....',
+];
+const GRID_PIP_F2 = [
+  '......XX..XX......',
+  '....XXddXXddXX....',
+  '...XddddXddddX....',
+  '..XOOXWWXOOOOXWWX.',
+  '.XOOOXWWXOOOWXWWX.',
+  'XOWXOOXWWXOWWXOOX.',
+  'XWWXOOXWWXOWWXOOX.',
+  'XOWXOOXWWXOOOOXOX.',
+  '.XOOXXWWXXOOOOXX..',
+  '..XooXWWXooooX....',
+  '...XXooXXooooX....',
+  '....XXXXXXXX......',
+];
+const GRID_PIP_F3 = [
+  '......XX..XX......',
+  '....XXddXXddXX....',
+  '....XddddXddddX...',
+  '...XOOXWWXOOOOXWWX',
+  '..XOOOXWWXOOOWXWWX',
+  '.XOWXOOXWWXOWWXOOX',
+  'XWWXOOXWWXOWWXOOX.',
+  'XWWXOOXWWXOOOOXOX.',
+  'XOWXOOXXWWXOOOOXX.',
+  '.XOOXooXWWXooooX..',
+  '..XXXooXXooooX....',
+  '....XXXXXXXX......',
 ];
 
+// ----------------------------------------------------------------------------
+// 2. MARINA - Blue Tang (18x12)
+// Compressed oval, cobalt-to-mint body, black palette marking from eye to
+// peduncle, yellow tail and pectoral, and 1px scalpel spine.
+// ----------------------------------------------------------------------------
 const GRID_MARINA_F0 = [
   '.....XXXX.........',
-  '....XWWWXX........',
-  '..XXWWWWWWX.......',
-  '.XWeeWWWWWXX....XX',
-  'XWeeWWWWWWWWXXXXyy',
-  'XWWWWWWWWWWWXXyyyy',
-  'XWWWWWWWWWWWWWXXy.',
-  '.XWWWWWWWWWWWWX...',
-  '..XWWWWWWyyyXX....',
-  '...XXyyyyXXXX.....',
-  '.....XXXX.........',
-  '..................'
+  '...XXIIIIXXXX.....',
+  '..XIiiiiiiiiiXX...',
+  '.XiiiiXXXXXXXXuX..',
+  'XiiiXXuuuuuuuuXuX.',
+  'YyyXuuuuXXuuuuuXuX',
+  'YyyXWuuuXXuuuuuXuX',
+  'YyyXuuuuuuuuuuuXuX',
+  '.XyyXuuuuuuuuuXuX.',
+  '..XXyyXXXXXXXXuX..',
+  '....XXyyyyyXXX....',
+  '......XXXXX.......',
 ];
 const GRID_MARINA_F1 = [
   '.....XXXX.........',
-  '....XWWWXX........',
-  '..XXWWWWWWX.......',
-  '.XWeeWWWWWXX......',
-  'XWeeWWWWWWWWXX....',
-  'XWWWWWWWWWWWXXyyyy',
-  'XWWWWWWWWWWWWWXXyy',
-  '.XWWWWWWWWWWWWXXy.',
-  '..XWWWWWWyyyXX....',
-  '...XXyyyyXXXX.....',
+  '...XXIIIIXXXX.....',
+  '..XIiiiiiiiiiXX...',
+  '.XiiiiXXXXXXXXuX..',
+  'YYyXiiXXuuuuuuXuX.',
+  'YYyXuuuuXXuuuuuXuX',
+  '.YYyXWuuXXuuuuuXuX',
+  '..YyXuuuuuuuuuuXuX',
+  '...XyyuuuuuuuuXuX.',
+  '....XXyXXXXXXXuX..',
+  '......XXyyyyXXX...',
+  '........XXXX......',
+];
+const GRID_MARINA_F2 = [
   '.....XXXX.........',
-  '..................'
+  '...XXIIIIXXXX.....',
+  '..XIiiiiiiiiiXX...',
+  '.XiiiiXXXXXXXXuX..',
+  'XiiiXXuuuuuuuuXuX.',
+  'YyyXuuuuXXuuuuuXuX',
+  'YyyXWuuuXXuuuuuXuX',
+  'YyyXuuuuuuuuuuuXuX',
+  '.XyyXuuuuuuuuuXuX.',
+  '..XXyyXXXXXXXXuX..',
+  '....XXyyyyyXXX....',
+  '......XXXXX.......',
+];
+const GRID_MARINA_F3 = [
+  '.....XXXX.........',
+  '...XXIIIIXXXX.....',
+  '..XIiiiiiiiiiXX...',
+  '..XiiiXXXXXXXXuX..',
+  '.XiiiiXXuuuuuuXuX.',
+  '..YyXuuuXXuuuuuXuX',
+  '.YYyXWuuXXuuuuuXuX',
+  'YYyXuuuuuuuuuuuXuX',
+  'YYyXuuuuuuuuuuXuX.',
+  '.XXyyyXXXXXXXXuX..',
+  '....XXyyyyyXXX....',
+  '......XXXXX.......',
 ];
 
+// ----------------------------------------------------------------------------
+// 3. DOT - Pufferfish (16x12) - Exactly 16 wide!
+// Near-sphere about 1.2x as wide as tall, tiny rounded tail, small translucent
+// pectoral, dorsal and anal fins set far back, beak mouth, pale-lemon with
+// brown spots and 1px spine dots.
+// ----------------------------------------------------------------------------
 const GRID_DOT_F0 = [
-  '......XXXX........',
-  '....XXyyyyXX......',
-  '...XyyyyOyyyX.....',
-  '..XyyOyyyyOyyX..XX',
-  '.XyeeyyyyyOyyyXXyy',
-  'XyeeyyyyyyyyyyXyyy',
-  'XyyyyyyyyOyyyyXyy.',
-  '.XyyyyOyyyyyyX....',
-  '..XyyyyyyyyyX.....',
-  '...XXyyyyyXX......',
-  '.....XXXXX........',
-  '..................'
+  '...ssssss.......',
+  '..sYYYYYYss.....',
+  '.sYYbYYXbYYs....',
+  'sYYYXbYYbYYYs...',
+  'sYYbYYXbYYeYYjj.',
+  'ssYYYYYYeYYeYYj.',
+  'sYYbYYXbYYeYYjj.',
+  'sYYYXbYYbYYYs...',
+  '.sYYbYYXbYYs....',
+  '..sYYYYYYss.....',
+  '...ssssss.......',
+  '................',
 ];
 const GRID_DOT_F1 = [
-  '......XXXX........',
-  '....XXyyyyXX......',
-  '...XyyyyOyyyX.....',
-  '..XyyOyyyyOyyX....',
-  '.XyeeyyyyyOyyyXX..',
-  'XyeeyyyyyyyyyyXyyy',
-  'XyyyyyyyyOyyyyXyyy',
-  '.XyyyyOyyyyyyXyyy.',
-  '..XyyyyyyyyyX.....',
-  '...XXyyyyyXX......',
-  '.....XXXXX........',
-  '..................'
+  '..ssssss........',
+  '.sYYYYYYss......',
+  'sYYbYYXbYYs.....',
+  'sYYYXbYYbYYs....',
+  'sYYbYYXbYYeYYjj.',
+  'ssYYYYYYeYYeYYj.',
+  '.sYYbYYXbYYeYjj.',
+  '..sYYXbYYbYYYs..',
+  '...sYYbYYXbYYs..',
+  '....sYYYYYYss...',
+  '.....ssssss.....',
+  '................',
+];
+const GRID_DOT_F2 = [
+  '...ssssss.......',
+  '..sYYYYYYss.....',
+  '.sYYbYYXbYYs....',
+  'sYYYXbYYbYYYs...',
+  'sYYbYYXbYYeYYjj.',
+  'ssYYYYYYeYYeYYj.',
+  'sYYbYYXbYYeYYjj.',
+  'sYYYXbYYbYYYs...',
+  '.sYYbYYXbYYs....',
+  '..sYYYYYYss.....',
+  '...ssssss.......',
+  '................',
+];
+const GRID_DOT_F3 = [
+  '.....ssssss.....',
+  '....sYYYYYYss...',
+  '...sYYbYYXbYYs..',
+  '..sYYYXbYYbYYs..',
+  '.sYYbYYXbYYeYjj.',
+  'ssYYYYYYeYYeYYj.',
+  'sYYbYYXbYYeYYjj.',
+  'sYYYXbYYbYYYs...',
+  'sYYbYYXbYYs.....',
+  '.sYYYYYYss......',
+  '..ssssss........',
+  '................',
 ];
 
+// ----------------------------------------------------------------------------
+// 4. BUMBLE - Angelfish (18x12)
+// Tall diamond silhouette with dorsal and anal fins sweeping back into long
+// filaments, two trailing pelvic filaments, golden-brown with black vertical
+// stripes through the eye.
+// ----------------------------------------------------------------------------
 const GRID_BUMBLE_F0 = [
-  '.....XXXX.........',
-  '....XyyyBXX.......',
-  '...XyyyByyyX......',
-  '..XyeeyByyyyX...XX',
-  '.XyeeyyByyyyXXXXyy',
-  'XyyyyyyByyyyXXyyyy',
-  'XyyyyyyByyyyXXyyy.',
-  '.XyyyyyByyyyX.....',
-  '..XyyyyByyyX......',
-  '...XXyyBXXX.......',
-  '.....XXXX.........',
-  '..................'
+  '..XX..............',
+  '..XyXX............',
+  '..XyyyXX..........',
+  '..XyyXyyXX........',
+  '...XyXyyyeXX..XXX.',
+  '...XyXyyeXeeXXyyyX',
+  '...XyXyyyeXX..XXX.',
+  '..XyyXyyXX........',
+  '..XyyyXX..........',
+  '..XyXX............',
+  '..XX..............',
+  '..X...............',
 ];
 const GRID_BUMBLE_F1 = [
-  '.....XXXX.........',
-  '....XyyyBXX.......',
-  '...XyyyByyyX......',
-  '..XyeeyByyyyX.....',
-  '.XyeeyyByyyyXX....',
-  'XyyyyyyByyyyXXyyyy',
-  'XyyyyyyByyyyXXyyy.',
-  '.XyyyyyByyyyXXyy..',
-  '..XyyyyByyyX......',
-  '...XXyyBXXX.......',
-  '.....XXXX.........',
-  '..................'
+  '.XX...............',
+  '.XyXX.............',
+  '.XyyyXX...........',
+  '..XyyXyyXX........',
+  '..XyXyyeXX...XXX..',
+  '..XyXyyeXeeXXyyyX.',
+  '...XyXyyyeXX..XXX.',
+  '...XyyXyyXX.......',
+  '..XyyyXX..........',
+  '..XyXX............',
+  '..XX..............',
+  '..X...............',
+];
+const GRID_BUMBLE_F2 = [
+  '..XX..............',
+  '..XyXX............',
+  '..XyyyXX..........',
+  '..XyyXyyXX........',
+  '...XyXyyyeXX..XXX.',
+  '...XyXyyeXeeXXyyyX',
+  '...XyXyyyeXX..XXX.',
+  '..XyyXyyXX........',
+  '..XyyyXX..........',
+  '..XyXX............',
+  '..XX..............',
+  '..X...............',
+];
+const GRID_BUMBLE_F3 = [
+  '...XX.............',
+  '...XyXX...........',
+  '...XyyyXX.........',
+  '...XyyXyyXX.......',
+  '..XyXyyeXX...XXX..',
+  '..XyXyyeXeeXXyyyX.',
+  '.XyXyyyeXX...XXX..',
+  '.XyyXyyXX.........',
+  '.XyyyXX...........',
+  '.XyXX.............',
+  '.XX...............',
+  '.X................',
 ];
 
+// ----------------------------------------------------------------------------
+// 5. SOL - Lionfish (18x12)
+// Red-orange with cream stripes, wide fan of pectoral "petals" and tall dorsal
+// spines forming a sun halo.
+// ----------------------------------------------------------------------------
 const GRID_SOL_F0 = [
-  '...cc..cc..cc.....',
-  '..cOOccOOccOOc....',
-  '.cOOOOOOOOOOOOc...',
-  'cOOeeOOOOOOOOOOcXX',
-  'cOOeeOOOOOOOOOOXOO',
-  'cOOOOOOOOOOOOOOXOO',
-  'cOOOOOOOOOOOOOOcXX',
-  '.cOOOOOOOOOOOOc...',
-  '..cOOccOOccOOc....',
-  '...cc..cc..cc.....',
+  '..X.X.X.X.X.X.....',
+  '..XcXcXcXcXcX.....',
+  '..XceXceXceXceX...',
+  '.XceXceXceXceXceX.',
+  'XceXceXceXceXceX..',
+  'XceXceXceXceXceX..',
+  'XceXceXceXceXceX..',
+  '.XceXceXceXceXceX.',
+  '..XceXceXceXceX...',
+  '..XcXcXcXcXcX.....',
+  '..X.X.X.X.X.X.....',
   '..................',
-  '..................'
 ];
 const GRID_SOL_F1 = [
-  '...cc..cc..cc.....',
-  '..cOOccOOccOOc....',
-  '.cOOOOOOOOOOOOc...',
-  'cOOeeOOOOOOOOOOc..',
-  'cOOeeOOOOOOOOOOX..',
-  'cOOOOOOOOOOOOOOXOO',
-  'cOOOOOOOOOOOOOOXOO',
-  '.cOOOOOOOOOOOOcXX.',
-  '..cOOccOOccOOc....',
-  '...cc..cc..cc.....',
+  '.X.X.X.X.X.X......',
+  '.XcXcXcXcXcX......',
+  '.XceXceXceXceX....',
+  'XceXceXceXceXceX..',
+  'XceXceXceXceXceX..',
+  'XceXceXceXceXceX..',
+  '.XceXceXceXceXceX.',
+  '..XceXceXceXceXceX',
+  '..XceXceXceXceX...',
+  '..XcXcXcXcXcX.....',
+  '..X.X.X.X.X.X.....',
   '..................',
-  '..................'
+];
+const GRID_SOL_F2 = [
+  '..X.X.X.X.X.X.....',
+  '..XcXcXcXcXcX.....',
+  '..XceXceXceXceX...',
+  '.XceXceXceXceXceX.',
+  'XceXceXceXceXceX..',
+  'XceXceXceXceXceX..',
+  'XceXceXceXceXceX..',
+  '.XceXceXceXceXceX.',
+  '..XceXceXceXceX...',
+  '..XcXcXcXcXcX.....',
+  '..X.X.X.X.X.X.....',
+  '..................',
+];
+const GRID_SOL_F3 = [
+  '...X.X.X.X.X.X....',
+  '...XcXcXcXcXcX....',
+  '..XceXceXceXceX...',
+  '..XceXceXceXceXceX',
+  '.XceXceXceXceXceX.',
+  'XceXceXceXceXceX..',
+  'XceXceXceXceXceX..',
+  'XceXceXceXceXceX..',
+  '.XceXceXceXceXceX.',
+  '.XcXcXcXcXcX......',
+  '.X.X.X.X.X.X......',
+  '..................',
 ];
 
+// ----------------------------------------------------------------------------
+// 6. LUMI - Lanternfish (18x12)
+// Slender, deep-blue, with large eyes, a forked tail, and rows of gold
+// photophore dots along the lower flank that glow at night.
+// ----------------------------------------------------------------------------
 const GRID_LUMI_F0 = [
-  '.....XXXX.........',
-  '....XuuuXX........',
-  '..XXuuuuuX........',
-  '.XueeuuuuXX.....XX',
-  'XueeuuuuuuuXXXXyy',
-  'XuuuuuuuuuuXXyyyy',
-  'XuuuuuuuuuuuuXXy.',
-  '.XuuuuuuuuuuuX...',
-  '..XuuuuuuuyyXX....',
-  '...XXyyyyXXXX.....',
-  '.....XXXX.........',
-  '..................'
+  '......XXXX........',
+  '....XXuuuuXX......',
+  '..XXuuuuuuuuXX....',
+  '.XuuWWuuuuuuuuXX..',
+  'XuuuXeXuuuuuuuuuX.',
+  'XuuuXeXuuuuuuuuuX.',
+  'XuuWWuuuuuuuuuXX..',
+  '.XuYYYyYYYyYXX....',
+  '..XXvvvvvvXX......',
+  '...XXvvvXX........',
+  '....XXXX..........',
+  '..................',
 ];
 const GRID_LUMI_F1 = [
   '.....XXXX.........',
-  '....XuuuXX........',
-  '..XXuuuuuX........',
-  '.XueeuuuuXX.......',
-  'XueeuuuuuuuXX.....',
-  'XuuuuuuuuuuXXyyyy',
-  'XuuuuuuuuuuuuXXyy',
-  '.XuuuuuuuuuuuXXy.',
-  '..XuuuuuuuyyXX....',
-  '...XXyyyyXXXX.....',
-  '.....XXXX.........',
-  '..................'
+  '...XXuuuuXX.......',
+  '.XXuuuuuuuuXX.....',
+  'XuuWWuuuuuuuuXX...',
+  'XuuuXeXuuuuuuuuuX.',
+  '.XuuXeXuuuuuuuuuX.',
+  '..XWWuuuuuuuuuXX..',
+  '...XuYYYyYYYyYXX..',
+  '....XXvvvvvvXX....',
+  '.....XXvvvXX......',
+  '......XXXX........',
+  '..................',
+];
+const GRID_LUMI_F2 = [
+  '......XXXX........',
+  '....XXuuuuXX......',
+  '..XXuuuuuuuuXX....',
+  '.XuuWWuuuuuuuuXX..',
+  'XuuuXeXuuuuuuuuuX.',
+  'XuuuXeXuuuuuuuuuX.',
+  'XuuWWuuuuuuuuuXX..',
+  '.XuYYYyYYYyYXX....',
+  '..XXvvvvvvXX......',
+  '...XXvvvXX........',
+  '....XXXX..........',
+  '..................',
+];
+const GRID_LUMI_F3 = [
+  '.......XXXX.......',
+  '.....XXuuuuXX.....',
+  '...XXuuuuuuuuXX...',
+  '..XWWuuuuuuuuuXX..',
+  '.XuuXeXuuuuuuuuuX.',
+  'XuuuXeXuuuuuuuuuX.',
+  'XuuWWuuuuuuuuXX...',
+  '.XuYYYyYYYyYXX....',
+  '..XXvvvvvvXX......',
+  '...XXvvvXX........',
+  '....XXXX..........',
+  '..................',
 ];
 
+// ----------------------------------------------------------------------------
+// 7. NOX - Eagle Ray (18x12)
+// Violet diamond body with wing-like pectoral fins on a 4-frame flap, a whip tail,
+// pale underside and cyan edge glow.
+// ----------------------------------------------------------------------------
 const GRID_NOX_F0 = [
-  '.....XXXX.........',
-  '....XPPPXX........',
-  '..XXPPPPPPX.......',
-  '.XeeePPPPPXX....XX',
-  'XeeePPPPPPPPXXXXrr',
-  'XPPPPPPPPPPPXXrrrr',
-  'XPPPPPPPPPPPPPXXr.',
-  '.XPPPPPPPPPPPPX...',
-  '..XPPPPPPPrrrXX....',
-  '...XXrrrrXXXX.....',
-  '.....XXXX.........',
-  '..................'
+  '.....rrXXXXrr.....',
+  '...rrXXPPPPXXrr...',
+  '..rXXPPPPPPPPXXr..',
+  '.rXXPPPPPPPPPPXXr.',
+  'rXXPPPPPPPPPPPPXXr',
+  'XPPPPPPPPPPPPPPPPX',
+  'XeeeeeeeeeeeeeeeeX',
+  'rXXeeeeeeeeeeeeXXr',
+  '.rXXeeeeeeeeeeXXr.',
+  '..rXXeeeeeeeeXXr..',
+  '...rrXXeeeeXXrr...',
+  '.....rrXXXXrr.....',
 ];
 const GRID_NOX_F1 = [
-  '.....XXXX.........',
-  '....XPPPXX........',
-  '..XXPPPPPPX.......',
-  '.XeeePPPPPXX......',
-  'XeeePPPPPPPPXX....',
-  'XPPPPPPPPPPPXXrrrr',
-  'XPPPPPPPPPPPPPXXrr',
-  '.XPPPPPPPPPPPPXXr.',
-  '..XPPPPPPPrrrXX....',
-  '...XXrrrrXXXX.....',
-  '.....XXXX.........',
-  '..................'
+  '...rrXXXXrr.......',
+  '..rXXPPPPXXrr.....',
+  '.rXXPPPPPPPPXXr...',
+  'rXXPPPPPPPPPPXXr..',
+  'XPPPPPPPPPPPPPPXXr',
+  'XPPPPPPPPPPPPPPPPX',
+  'XeeeeeeeeeeeeeeeeX',
+  'XeeeeeeeeeeeeeeXXr',
+  'rXXeeeeeeeeeeXXr..',
+  '.rXXeeeeeeeeXXr...',
+  '..rXXeeeeeeXXrr...',
+  '...rrXXXXrr.......',
+];
+const GRID_NOX_F2 = [
+  '.....rrXXXXrr.....',
+  '...rrXXPPPPXXrr...',
+  '..rXXPPPPPPPPXXr..',
+  '.rXXPPPPPPPPPPXXr.',
+  'rXXPPPPPPPPPPPPXXr',
+  'XPPPPPPPPPPPPPPPPX',
+  'XeeeeeeeeeeeeeeeeX',
+  'rXXeeeeeeeeeeeeXXr',
+  '.rXXeeeeeeeeeeXXr.',
+  '..rXXeeeeeeeeXXr..',
+  '...rrXXeeeeXXrr...',
+  '.....rrXXXXrr.....',
+];
+const GRID_NOX_F3 = [
+  '.......rrXXXXrr...',
+  '.....rrXXPPPPXXr..',
+  '...rXXPPPPPPPPXXr.',
+  '..rXXPPPPPPPPPPXXr',
+  'rXXPPPPPPPPPPPPPPX',
+  'XPPPPPPPPPPPPPPPPX',
+  'XeeeeeeeeeeeeeeeeX',
+  'rXXeeeeeeeeeeeeeeX',
+  '..rXXeeeeeeeeeeXXr',
+  '...rXXeeeeeeeeXXr.',
+  '....rrXXeeeeXXrr..',
+  '.......rrXXXXrr...',
 ];
 
+// ----------------------------------------------------------------------------
+// 8. GLIMMER - Mandarinfish (18x12)
+// Chunky and low, with large paddle pectorals, short dorsal and tail, and
+// cyan-pink swirl patterning.
+// ----------------------------------------------------------------------------
 const GRID_GLIMMER_F0 = [
-  '.....XXXX.........',
-  '....XrrrcXX.......',
-  '..XXrrrrccX.......',
-  '.XeeerrrccXX....XX',
-  'XeeerrrrcccccXXXcc',
-  'XrrrrrrrcccccXXccc',
-  'XrrrrrccccccXXcc..',
-  '.XrrrcccccccX.....',
-  '..XrrccccccXX.....',
-  '...XXccccXXXX.....',
-  '.....XXXX.........',
-  '..................'
+  '......XXXX........',
+  '....XXrrrrXX......',
+  '..XXrrpppprrXX....',
+  '.XrrppOOOOpprrXX..',
+  'XrrppOOeeOOpprrrX.',
+  'XrrppOOeeOOpprrrX.',
+  'XrrppOOOOOOpprrrX.',
+  '.XrrpppppppprrXX..',
+  '..XXrrrrrrrrXX....',
+  '...XXrrrrrrXX.....',
+  '....XXXXXXXX......',
+  '..................',
 ];
 const GRID_GLIMMER_F1 = [
   '.....XXXX.........',
-  '....XrrrcXX.......',
-  '..XXrrrrccX.......',
-  '.XeeerrrccXX......',
-  'XeeerrrrcccccXX...',
-  'XrrrrrrrcccccXXccc',
-  'XrrrrrccccccXXcc..',
-  '.XrrrcccccccXXcc..',
-  '..XrrccccccXX.....',
-  '...XXccccXXXX.....',
-  '.....XXXX.........',
-  '..................'
+  '...XXrrrrXX.......',
+  '.XXrrpppprrXX.....',
+  'XrrppOOOOpprrXX...',
+  'XrrppOOeeOOpprrrX.',
+  '.XrrpOOeeOOpprrrX.',
+  '..XrpOOOOOOpprrrX.',
+  '...XrrpppppprrXX..',
+  '....XXrrrrrrXX....',
+  '.....XXrrrrXX.....',
+  '......XXXXXX......',
+  '..................',
+];
+const GRID_GLIMMER_F2 = [
+  '......XXXX........',
+  '....XXrrrrXX......',
+  '..XXrrpppprrXX....',
+  '.XrrppOOOOpprrXX..',
+  'XrrppOOeeOOpprrrX.',
+  'XrrppOOeeOOpprrrX.',
+  'XrrppOOOOOOpprrrX.',
+  '.XrrpppppppprrXX..',
+  '..XXrrrrrrrrXX....',
+  '...XXrrrrrrXX.....',
+  '....XXXXXXXX......',
+  '..................',
+];
+const GRID_GLIMMER_F3 = [
+  '.......XXXX.......',
+  '.....XXrrrrXX.....',
+  '...XXrrpppprrXX...',
+  '..XrrppOOOOpprrXX.',
+  '.XrrppOOeeOOpprrrX',
+  'XrrppOOeeOOpprrrX.',
+  'XrrppOOOOOOpprrrX.',
+  '.XrrpppppppprrXX..',
+  '..XXrrrrrrrrXX....',
+  '...XXrrrrrrXX.....',
+  '....XXXXXXXX......',
+  '..................',
 ];
 
+// ----------------------------------------------------------------------------
+// 9. VEIL - Veiltail Goldfish (18x12)
+// Pearly translucent egg-shaped body with double veil tail about 1.5x body
+// length on a 4-frame flow.
+// ----------------------------------------------------------------------------
 const GRID_VEIL_F0 = [
-  '.....XXXX.........',
-  '....XvvvXX........',
-  '..XXvvvvvvX.......',
-  '.XeeevvvvvXX....XX',
-  'XeeevvvvvvvvXXXXvv',
-  'XvvvvvvvvvvvXXvvvv',
-  'XvvvvvvvvvvvvvXXv.',
-  '.XvvvvvvvvvvvvX...',
-  '..XvvvvvvvvvXX....',
-  '...XXvvvvXXXX.....',
-  '.....XXXX.........',
-  '..................'
+  '......XXXX........',
+  '....XXvvvvXX......',
+  '..XXvvvvvvvvXX....',
+  '.XvvvvvvvvvvvvXX..',
+  'XvvvvvveevvvvvvvX.',
+  'XvvvvvveevvvvvvvX.',
+  'XvvvvvvvvvvvvvvvX.',
+  '.XvvvvvvvvvvvvXX..',
+  '..XXvvvvvvvvXX....',
+  '...XXvvvvvvXX.....',
+  '....XXXXXXXX......',
+  '..................',
 ];
 const GRID_VEIL_F1 = [
   '.....XXXX.........',
-  '....XvvvXX........',
-  '..XXvvvvvvX.......',
-  '.XeeevvvvvXX......',
-  'XeeevvvvvvvvXX....',
-  'XvvvvvvvvvvvXXvvvv',
-  'XvvvvvvvvvvvvvXXvv',
-  '.XvvvvvvvvvvvvXXv.',
-  '..XvvvvvvvvvXX....',
-  '...XXvvvvXXXX.....',
-  '.....XXXX.........',
-  '..................'
+  '...XXvvvvXX.......',
+  '.XXvvvvvvvvXX.....',
+  'XvvvvvvvvvvvvXX...',
+  'XvvvvvveevvvvvvvX.',
+  '.XvvvveevvvvvvvvX.',
+  '..XvvvvvvvvvvvvvX.',
+  '...XvvvvvvvvvvXX..',
+  '....XXvvvvvvXX....',
+  '.....XXvvvvXX.....',
+  '......XXXXXX......',
+  '..................',
+];
+const GRID_VEIL_F2 = [
+  '......XXXX........',
+  '....XXvvvvXX......',
+  '..XXvvvvvvvvXX....',
+  '.XvvvvvvvvvvvvXX..',
+  'XvvvvvveevvvvvvvX.',
+  'XvvvvvveevvvvvvvX.',
+  'XvvvvvvvvvvvvvvvX.',
+  '.XvvvvvvvvvvvvXX..',
+  '..XXvvvvvvvvXX....',
+  '...XXvvvvvvXX.....',
+  '....XXXXXXXX......',
+  '..................',
+];
+const GRID_VEIL_F3 = [
+  '.......XXXX.......',
+  '.....XXvvvvXX.....',
+  '...XXvvvvvvvvXX...',
+  '..XvvvvvvvvvvvXX..',
+  '.XvvvvveevvvvvvvX.',
+  'XvvvvvveevvvvvvvX.',
+  'XvvvvvvvvvvvvvvvX.',
+  '.XvvvvvvvvvvvvXX..',
+  '..XXvvvvvvvvXX....',
+  '...XXvvvvvvXX.....',
+  '....XXXXXXXX......',
+  '..................',
 ];
 
+// ----------------------------------------------------------------------------
+// 10. AURORA - Humphead Wrasse (18x12)
+// Thick body with a forehead hump as the crown, thick lips, a blue-green body
+// and violet lines radiating from the eye.
+// ----------------------------------------------------------------------------
 const GRID_AURORA_F0 = [
-  '.....X..X..X......',
-  '....XGXXGXXGX.....',
-  '..XXGGGGGGGGX.....',
-  '.XeeeGGGGGGGXX..XX',
-  'XeeeGGGGGGGGPPXXPP',
-  'XGGGGGGGGGGPPPXXPP',
-  'XGGGGGGGGGGPPPXXP.',
-  '.XGGGGGGGGPPPX....',
-  '..XGGGGGGGPPXX....',
-  '...XXPPPPXXXX.....',
   '.....XXXX.........',
-  '..................'
+  '....XttttXX.......',
+  '..XXtttttttXX.....',
+  '.XtttttttttttXX...',
+  'XttttteettttttPX..',
+  'XttttteettttttPXj.',
+  'XtttttttttttttPXj.',
+  '.XtttttttttttXX...',
+  '..XXtttttttXX.....',
+  '...XXtttttXX......',
+  '.....XXXXX........',
+  '..................',
 ];
 const GRID_AURORA_F1 = [
-  '.....X..X..X......',
-  '....XGXXGXXGX.....',
-  '..XXGGGGGGGGX.....',
-  '.XeeeGGGGGGGXX....',
-  'XeeeGGGGGGGGPPXX..',
-  'XGGGGGGGGGGPPPXXPP',
-  'XGGGGGGGGGGPPPXXPP',
-  '.XGGGGGGGGPPPXXP..',
-  '..XGGGGGGGPPXX....',
-  '...XXPPPPXXXX.....',
+  '....XXXX..........',
+  '...XttttXX........',
+  '.XXtttttttXX......',
+  'XtttttttttttXX....',
+  'XttttteettttttPX..',
+  '.XtttteettttttPXj.',
+  '..XtttttttttttPXj.',
+  '...XtttttttttXX...',
+  '....XXtttttXX.....',
+  '.....XXtttXX......',
+  '......XXXX........',
+  '..................',
+];
+const GRID_AURORA_F2 = [
   '.....XXXX.........',
-  '..................'
+  '....XttttXX.......',
+  '..XXtttttttXX.....',
+  '.XtttttttttttXX...',
+  'XttttteettttttPX..',
+  'XttttteettttttPXj.',
+  'XtttttttttttttPXj.',
+  '.XtttttttttttXX...',
+  '..XXtttttttXX.....',
+  '...XXtttttXX......',
+  '.....XXXXX........',
+  '..................',
+];
+const GRID_AURORA_F3 = [
+  '......XXXX........',
+  '.....XttttXX......',
+  '...XXtttttttXX....',
+  '..XtttttttttttXX..',
+  '.XttttteettttttPX.',
+  'XttttteettttttPXj.',
+  'XtttttttttttttPXj.',
+  '.XtttttttttttXX...',
+  '..XXtttttttXX.....',
+  '...XXtttttXX......',
+  '.....XXXXX........',
+  '..................',
 ];
 
-// SPECIES SPRITES compiled array
-// SPECIES SPRITES compiled array
+// SPECIES SPRITES compiled array (4-frame animated sets)
 export const SPECIES_SPRITES: BakedSprite[][] = [
-  // Level 1: PIP
-  [bakeSpeciesSprite(GRID_PIP_F0), bakeSpeciesSprite(GRID_PIP_F1)],
-  // Level 2: MARINA
-  [bakeSpeciesSprite(GRID_MARINA_F0), bakeSpeciesSprite(GRID_MARINA_F1)],
-  // Level 3: DOT
-  [bakeSpeciesSprite(GRID_DOT_F0), bakeSpeciesSprite(GRID_DOT_F1)],
-  // Level 4: BUMBLE
-  [bakeSpeciesSprite(GRID_BUMBLE_F0), bakeSpeciesSprite(GRID_BUMBLE_F1)],
-  // Level 5: SOL
-  [bakeSpeciesSprite(GRID_SOL_F0), bakeSpeciesSprite(GRID_SOL_F1)],
-  // Level 6: LUMI (Glow: gold)
-  [bakeSpeciesSprite(GRID_LUMI_F0, '#ffc83d'), bakeSpeciesSprite(GRID_LUMI_F1, '#ffc83d')],
-  // Level 7: NOX (Glow: diamond)
-  [bakeSpeciesSprite(GRID_NOX_F0, '#8ee8ff'), bakeSpeciesSprite(GRID_NOX_F1, '#8ee8ff')],
-  // Level 8: GLIMMER (Glow: coral)
-  [bakeSpeciesSprite(GRID_GLIMMER_F0, '#e8604c'), bakeSpeciesSprite(GRID_GLIMMER_F1, '#e8604c')],
-  // Level 9: VEIL (Glow: silver)
-  [bakeSpeciesSprite(GRID_VEIL_F0, '#d9e2ea'), bakeSpeciesSprite(GRID_VEIL_F1, '#d9e2ea')],
-  // Level 10: AURORA (Glow: alienGreen)
-  [bakeSpeciesSprite(GRID_AURORA_F0, '#7cc95a'), bakeSpeciesSprite(GRID_AURORA_F1, '#7cc95a')],
+  // Level 1: PIP (Clownfish)
+  [bakeSpeciesSprite(GRID_PIP_F0), bakeSpeciesSprite(GRID_PIP_F1), bakeSpeciesSprite(GRID_PIP_F2), bakeSpeciesSprite(GRID_PIP_F3)],
+  // Level 2: MARINA (Blue Tang)
+  [bakeSpeciesSprite(GRID_MARINA_F0), bakeSpeciesSprite(GRID_MARINA_F1), bakeSpeciesSprite(GRID_MARINA_F2), bakeSpeciesSprite(GRID_MARINA_F3)],
+  // Level 3: DOT (Pufferfish, 16x12)
+  [bakeSpeciesSprite(GRID_DOT_F0), bakeSpeciesSprite(GRID_DOT_F1), bakeSpeciesSprite(GRID_DOT_F2), bakeSpeciesSprite(GRID_DOT_F3)],
+  // Level 4: BUMBLE (Angelfish)
+  [bakeSpeciesSprite(GRID_BUMBLE_F0), bakeSpeciesSprite(GRID_BUMBLE_F1), bakeSpeciesSprite(GRID_BUMBLE_F2), bakeSpeciesSprite(GRID_BUMBLE_F3)],
+  // Level 5: SOL (Lionfish)
+  [bakeSpeciesSprite(GRID_SOL_F0), bakeSpeciesSprite(GRID_SOL_F1), bakeSpeciesSprite(GRID_SOL_F2), bakeSpeciesSprite(GRID_SOL_F3)],
+  // Level 6: LUMI (Lanternfish, Gold glow)
+  [bakeSpeciesSprite(GRID_LUMI_F0, '#ffc83d'), bakeSpeciesSprite(GRID_LUMI_F1, '#ffc83d'), bakeSpeciesSprite(GRID_LUMI_F2, '#ffc83d'), bakeSpeciesSprite(GRID_LUMI_F3, '#ffc83d')],
+  // Level 7: NOX (Eagle Ray, Diamond cyan glow)
+  [bakeSpeciesSprite(GRID_NOX_F0, '#8ee8ff'), bakeSpeciesSprite(GRID_NOX_F1, '#8ee8ff'), bakeSpeciesSprite(GRID_NOX_F2, '#8ee8ff'), bakeSpeciesSprite(GRID_NOX_F3, '#8ee8ff')],
+  // Level 8: GLIMMER (Mandarinfish, Coral glow)
+  [bakeSpeciesSprite(GRID_GLIMMER_F0, '#e8604c'), bakeSpeciesSprite(GRID_GLIMMER_F1, '#e8604c'), bakeSpeciesSprite(GRID_GLIMMER_F2, '#e8604c'), bakeSpeciesSprite(GRID_GLIMMER_F3, '#e8604c')],
+  // Level 9: VEIL (Veiltail Goldfish, Silver pearl glow)
+  [bakeSpeciesSprite(GRID_VEIL_F0, '#d9e2ea'), bakeSpeciesSprite(GRID_VEIL_F1, '#d9e2ea'), bakeSpeciesSprite(GRID_VEIL_F2, '#d9e2ea'), bakeSpeciesSprite(GRID_VEIL_F3, '#d9e2ea')],
+  // Level 10: AURORA (Humphead Wrasse, Green glow)
+  [bakeSpeciesSprite(GRID_AURORA_F0, '#7cc95a'), bakeSpeciesSprite(GRID_AURORA_F1, '#7cc95a'), bakeSpeciesSprite(GRID_AURORA_F2, '#7cc95a'), bakeSpeciesSprite(GRID_AURORA_F3, '#7cc95a')],
 ];
 
-export function getSpeciesSprite(level: number, frame: 0 | 1): BakedSprite {
+export function getSpeciesSprite(level: number, frame: number): BakedSprite {
   const list = AERO_ACTIVE ? SPECIES_SPRITES_AERO : SPECIES_SPRITES;
   const set = list[level - 1] || list[0];
-  return set[frame];
+  return set[frame % set.length];
 }
 
 export const SPECIES_SPRITES_AERO: BakedSprite[][] = [
   // Level 1: PIP
-  [bakeSpeciesSprite(GRID_PIP_F0, null, true), bakeSpeciesSprite(GRID_PIP_F1, null, true)],
+  [bakeSpeciesSprite(GRID_PIP_F0, null, true), bakeSpeciesSprite(GRID_PIP_F1, null, true), bakeSpeciesSprite(GRID_PIP_F2, null, true), bakeSpeciesSprite(GRID_PIP_F3, null, true)],
   // Level 2: MARINA
-  [bakeSpeciesSprite(GRID_MARINA_F0, null, true), bakeSpeciesSprite(GRID_MARINA_F1, null, true)],
+  [bakeSpeciesSprite(GRID_MARINA_F0, null, true), bakeSpeciesSprite(GRID_MARINA_F1, null, true), bakeSpeciesSprite(GRID_MARINA_F2, null, true), bakeSpeciesSprite(GRID_MARINA_F3, null, true)],
   // Level 3: DOT
-  [bakeSpeciesSprite(GRID_DOT_F0, null, true), bakeSpeciesSprite(GRID_DOT_F1, null, true)],
+  [bakeSpeciesSprite(GRID_DOT_F0, null, true), bakeSpeciesSprite(GRID_DOT_F1, null, true), bakeSpeciesSprite(GRID_DOT_F2, null, true), bakeSpeciesSprite(GRID_DOT_F3, null, true)],
   // Level 4: BUMBLE
-  [bakeSpeciesSprite(GRID_BUMBLE_F0, null, true), bakeSpeciesSprite(GRID_BUMBLE_F1, null, true)],
+  [bakeSpeciesSprite(GRID_BUMBLE_F0, null, true), bakeSpeciesSprite(GRID_BUMBLE_F1, null, true), bakeSpeciesSprite(GRID_BUMBLE_F2, null, true), bakeSpeciesSprite(GRID_BUMBLE_F3, null, true)],
   // Level 5: SOL
-  [bakeSpeciesSprite(GRID_SOL_F0, null, true), bakeSpeciesSprite(GRID_SOL_F1, null, true)],
-  // Level 6: LUMI (Glow: gold)
-  [bakeSpeciesSprite(GRID_LUMI_F0, '#ffc83d', true), bakeSpeciesSprite(GRID_LUMI_F1, '#ffc83d', true)],
-  // Level 7: NOX (Glow: diamond)
-  [bakeSpeciesSprite(GRID_NOX_F0, '#8ee8ff', true), bakeSpeciesSprite(GRID_NOX_F1, '#8ee8ff', true)],
-  // Level 8: GLIMMER (Glow: coral)
-  [bakeSpeciesSprite(GRID_GLIMMER_F0, '#e8604c', true), bakeSpeciesSprite(GRID_GLIMMER_F1, '#e8604c', true)],
-  // Level 9: VEIL (Glow: silver)
-  [bakeSpeciesSprite(GRID_VEIL_F0, '#d9e2ea', true), bakeSpeciesSprite(GRID_VEIL_F1, '#d9e2ea', true)],
-  // Level 10: AURORA (Glow: alienGreen)
-  [bakeSpeciesSprite(GRID_AURORA_F0, '#7cc95a', true), bakeSpeciesSprite(GRID_AURORA_F1, '#7cc95a', true)],
+  [bakeSpeciesSprite(GRID_SOL_F0, null, true), bakeSpeciesSprite(GRID_SOL_F1, null, true), bakeSpeciesSprite(GRID_SOL_F2, null, true), bakeSpeciesSprite(GRID_SOL_F3, null, true)],
+  // Level 6: LUMI
+  [bakeSpeciesSprite(GRID_LUMI_F0, '#ffc83d', true), bakeSpeciesSprite(GRID_LUMI_F1, '#ffc83d', true), bakeSpeciesSprite(GRID_LUMI_F2, '#ffc83d', true), bakeSpeciesSprite(GRID_LUMI_F3, '#ffc83d', true)],
+  // Level 7: NOX
+  [bakeSpeciesSprite(GRID_NOX_F0, '#8ee8ff', true), bakeSpeciesSprite(GRID_NOX_F1, '#8ee8ff', true), bakeSpeciesSprite(GRID_NOX_F2, '#8ee8ff', true), bakeSpeciesSprite(GRID_NOX_F3, '#8ee8ff', true)],
+  // Level 8: GLIMMER
+  [bakeSpeciesSprite(GRID_GLIMMER_F0, '#e8604c', true), bakeSpeciesSprite(GRID_GLIMMER_F1, '#e8604c', true), bakeSpeciesSprite(GRID_GLIMMER_F2, '#e8604c', true), bakeSpeciesSprite(GRID_GLIMMER_F3, '#e8604c', true)],
+  // Level 9: VEIL
+  [bakeSpeciesSprite(GRID_VEIL_F0, '#d9e2ea', true), bakeSpeciesSprite(GRID_VEIL_F1, '#d9e2ea', true), bakeSpeciesSprite(GRID_VEIL_F2, '#d9e2ea', true), bakeSpeciesSprite(GRID_VEIL_F3, '#d9e2ea', true)],
+  // Level 10: AURORA
+  [bakeSpeciesSprite(GRID_AURORA_F0, '#7cc95a', true), bakeSpeciesSprite(GRID_AURORA_F1, '#7cc95a', true), bakeSpeciesSprite(GRID_AURORA_F2, '#7cc95a', true), bakeSpeciesSprite(GRID_AURORA_F3, '#7cc95a', true)],
 ];
 
 function bakeDitheredSteps(base: BakedSprite): BakedSprite[] {
@@ -1502,28 +1964,32 @@ function bakeDitheredSteps(base: BakedSprite): BakedSprite[] {
 }
 
 // ============================================================================
-// CARNIVORE FISH (30 art px, purple3 & purple4, underbite with
-// visible tooth pixels, spiky dorsal fin, 2-frame tail, and hunting eye glint)
+// CARNIVORE FISH (30 art px wide: piranha-inspired in purple, deep body,
+// heavy underbite, two rows of triangular teeth, adipose fin, and strong forked tail)
 // ============================================================================
 const C_CARNIVORE: Record<string, PaletteKey> = {
-  P: 'purple3',       // #9a5cc4 main body
-  D: 'purple4',       // #5e3a8c dorsal / shadow
-  T: 'cream',         // Sharp tooth pixels
+  P: 'purple3',       // #9a5cc4 base purple flank
+  D: 'purple4',       // #5e3a8c dark back / adipose
+  K: 'purple5',       // #3a2660 shadow
+  T: 'cream',         // Sharp triangular teeth rows
+  W: 'white',         // Tooth highlights
   E: 'gold3',         // Predator gold eye
-  X: 'outline',       // Pupil / outline
-  L: 'purple2',       // #b184d8 jaw/belly highlight
+  X: 'outline',       // Pupil / underbite rim
+  L: 'purple2',       // #b184d8 light belly
 };
 
 const C_CARNIVORE_DYING: Record<string, PaletteKey> = {
   P: 'silver',
   D: 'outline',
+  K: 'outline',
   T: 'cream',
+  W: 'silver',
   E: 'outline',
   X: 'outline',
   L: 'silver',
 };
 
-// Carnivore Frame 0 (Tail up)
+// 4-frame strong forked tail & pectoral flutter (30 wide x 18 high)
 const GRID_CARNIVORE_F0 = [
   '.........DD.DD.DD.............',
   '........DPPDPPDPP.............',
@@ -1545,7 +2011,6 @@ const GRID_CARNIVORE_F0 = [
   '.......LLLDDDD................',
 ];
 
-// Carnivore Frame 1 (Tail down)
 const GRID_CARNIVORE_F1 = [
   '.........DD.DD.DD.............',
   '........DPPDPPDPP.............',
@@ -1567,26 +2032,75 @@ const GRID_CARNIVORE_F1 = [
   '.......LLLDDDD................',
 ];
 
+const GRID_CARNIVORE_F2 = [
+  '.........DD.DD.DD.............',
+  '........DPPDPPDPP.............',
+  '.......DPPPPPPPPPP............',
+  '......DPPPPPPPPPPPP...........',
+  '.....DPPPPPPPPPPPPPP..........',
+  '...PPPPPPPPPPPPPPPPPP....PP...',
+  '..PEEXPPPPPPPPPPPPPPPP..PPPP..',
+  '.PEEXXPPPPPPPPPPPPPPPPPDPPPP..',
+  '.PPPPPPPPPPPPPPPPPPPPPPDPPPP..',
+  '..PPPPPPPPPPPPPPPPPPPPPDDPPP..',
+  '..TT..PPPPPPPPPPPPPPPPPDD.....',
+  '.TTTTTLLLLLLLLDDDDDDDDDD......',
+  'TTTTTTLLLLLLLLDDDDDDDDD.......',
+  '.TTTTTLLLLLLLLDDDDDDDD........',
+  '..TTTLLLLLLLLDDDDDDDD.........',
+  '...LLLLLLLLLLDDDDDDD..........',
+  '.....LLLLLLLDDDDD.............',
+  '.......LLLDDDD................',
+];
+
+const GRID_CARNIVORE_F3 = [
+  '.........DD.DD.DD.............',
+  '........DPPDPPDPP.............',
+  '.......DPPPPPPPPPP............',
+  '......DPPPPPPPPPPPP...........',
+  '.....DPPPPPPPPPPPPPP..........',
+  '...PPPPPPPPPPPPPPPPPP.........',
+  '..PEEXPPPPPPPPPPPPPPPP........',
+  '.PEEXXPPPPPPPPPPPPPPPP..PP....',
+  '.PPPPPPPPPPPPPPPPPPPPP.PPPP...',
+  '..PPPPPPPPPPPPPPPPPPPPPDPPPP..',
+  '..TT..PPPPPPPPPPPPPPPPPDPPPP..',
+  '.TTTTTLLLLLLLLDDDDDDDD.DPPP...',
+  'TTTTTTLLLLLLLLDDDDDDDDD.DD....',
+  '.TTTTTLLLLLLLLDDDDDDDD........',
+  '..TTTLLLLLLLLDDDDDDDD.........',
+  '...LLLLLLLLLLDDDDDDD..........',
+  '.....LLLLLLLDDDDD.............',
+  '.......LLLDDDD................',
+];
+
 export const CARNIVORE_SPRITES = {
   normal: [
     bakeSprite(GRID_CARNIVORE_F0, C_CARNIVORE),
     bakeSprite(GRID_CARNIVORE_F1, C_CARNIVORE),
+    bakeSprite(GRID_CARNIVORE_F2, C_CARNIVORE),
+    bakeSprite(GRID_CARNIVORE_F3, C_CARNIVORE),
   ],
   dying: [
     bakeDitheredSteps(bakeSprite(GRID_CARNIVORE_F0, C_CARNIVORE_DYING)),
     bakeDitheredSteps(bakeSprite(GRID_CARNIVORE_F1, C_CARNIVORE_DYING)),
+    bakeDitheredSteps(bakeSprite(GRID_CARNIVORE_F2, C_CARNIVORE_DYING)),
+    bakeDitheredSteps(bakeSprite(GRID_CARNIVORE_F3, C_CARNIVORE_DYING)),
   ],
 };
-
 
 export const CARNIVORE_SPRITES_AERO = {
   normal: [
     bakeSprite(GRID_CARNIVORE_F0, { ...C_CARNIVORE, P: 'aqua', D: 'navy' } as Record<string, PaletteKey>, undefined, undefined, 'carn', true),
     bakeSprite(GRID_CARNIVORE_F1, { ...C_CARNIVORE, P: 'aqua', D: 'navy' } as Record<string, PaletteKey>, undefined, undefined, 'carn', true),
+    bakeSprite(GRID_CARNIVORE_F2, { ...C_CARNIVORE, P: 'aqua', D: 'navy' } as Record<string, PaletteKey>, undefined, undefined, 'carn', true),
+    bakeSprite(GRID_CARNIVORE_F3, { ...C_CARNIVORE, P: 'aqua', D: 'navy' } as Record<string, PaletteKey>, undefined, undefined, 'carn', true),
   ],
   dying: [
     bakeDitheredSteps(bakeSprite(GRID_CARNIVORE_F0, { ...C_CARNIVORE, P: 'navy', D: 'silver' } as Record<string, PaletteKey>, undefined, undefined, 'carn', true)),
     bakeDitheredSteps(bakeSprite(GRID_CARNIVORE_F1, { ...C_CARNIVORE, P: 'navy', D: 'silver' } as Record<string, PaletteKey>, undefined, undefined, 'carn', true)),
+    bakeDitheredSteps(bakeSprite(GRID_CARNIVORE_F2, { ...C_CARNIVORE, P: 'navy', D: 'silver' } as Record<string, PaletteKey>, undefined, undefined, 'carn', true)),
+    bakeDitheredSteps(bakeSprite(GRID_CARNIVORE_F3, { ...C_CARNIVORE, P: 'navy', D: 'silver' } as Record<string, PaletteKey>, undefined, undefined, 'carn', true)),
   ],
 };
 
@@ -1605,24 +2119,26 @@ export function getFishSprite(
   isAeroOverride?: boolean
 ): BakedSprite {
   const isAero = isAeroOverride !== undefined ? isAeroOverride : AERO_ACTIVE;
+  // Fins move independently
   const tailFrame = Math.floor(time / 0.12) % 4;
   const pecFrame = Math.floor(time * 6) % 2;
-  const isBlinking = state !== 'dying' && (time % 4.0 < 0.15);
+  const dorsalRipple = Math.floor(time * 5) % 3;
+  const gillPulse = (time % 1.5) < 0.25;
   const isEating = state !== 'dying' && (timeSinceAte <= 0.15);
 
-  const cacheKey = `${size}_${state}_${tailFrame}_${pecFrame}_${isBlinking ? 1 : 0}_${isEating ? 1 : 0}_${ditherStep}_${isAero ? 1 : 0}`;
+  const cacheKey = `${size}_${state}_${tailFrame}_${pecFrame}_${dorsalRipple}_${gillPulse ? 1 : 0}_${isEating ? 1 : 0}_${ditherStep}_${isAero ? 1 : 0}`;
   if (lazyFishCache.has(cacheKey)) {
     return lazyFishCache.get(cacheKey)!;
   }
 
-  // Generate grid procedurally
+  // Generate grid procedurally under anatomical parts manifest
   let grid: string[];
   if (size === 0) {
-    grid = buildFish0Grid(state, tailFrame, pecFrame, isBlinking, isEating);
+    grid = buildFish0Grid(state, tailFrame, pecFrame, dorsalRipple, gillPulse, isEating);
   } else if (size === 1) {
-    grid = buildFish1Grid(state, tailFrame, pecFrame, isBlinking, isEating);
+    grid = buildFish1Grid(state, tailFrame, pecFrame, dorsalRipple, gillPulse, isEating);
   } else {
-    grid = buildFish2Grid(state, tailFrame, pecFrame, isBlinking, isEating);
+    grid = buildFish2Grid(state, tailFrame, pecFrame, dorsalRipple, gillPulse, isEating);
   }
 
   // Color Map selection
@@ -1656,16 +2172,16 @@ export function getFishSprite(
 }
 
 export function getCarnivoreSprite(
-  frame: 0 | 1,
+  frame: number,
   state: 'normal' | 'dying' = 'normal',
   ditherStep: 0 | 1 | 2 | 3 = 0
 ): BakedSprite {
   const list = AERO_ACTIVE ? CARNIVORE_SPRITES_AERO : CARNIVORE_SPRITES;
   if (state === 'dying') {
-    const dlist = list.dying[frame % 2];
+    const dlist = list.dying[frame % list.dying.length];
     return dlist[ditherStep] || dlist[0];
   }
-  return list.normal[frame % 2];
+  return list.normal[frame % list.normal.length];
 }
 
 // ============================================================================
